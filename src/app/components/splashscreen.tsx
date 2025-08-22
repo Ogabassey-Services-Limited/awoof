@@ -1,30 +1,51 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect } from "react";
+import { Inter } from "next/font/google";
+import { ReactNode } from "react";
+import Image from 'next/image';
+import graduationCap from '../../../public/images/noto_graduation-cap.svg';
 
-import { ReactNode } from 'react';
+const inter = Inter({ subsets: ["latin"] });
 
 export default function SplashScreen({ children }: { children: ReactNode }) {
-  const [isLoading, setIsLoading] = useState(true)
+    const [showSplash, setShowSplash] = useState(false)
+    const [isFirstVisit, setIsFirstVisit] = useState(false)
+  
+    useEffect(() => {
+      // Check if this is the first visit
+      const hasVisited = localStorage.getItem('hasVisitedHome')
+      
+      if (!hasVisited || hasVisited === 'false') {
+        setShowSplash(true)
+        setIsFirstVisit(true)
+        localStorage.setItem('hasVisitedHome', 'true')
+        
+        const timer = setTimeout(() => {
+          setShowSplash(false)
+        }, 2500)
+        
+        return () => clearTimeout(timer)
+      }
+    }, [])
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false)
-    }, 2000)
-
-    return () => clearTimeout(timer)
-  }, [])
-
-  if (isLoading) {
+  if (showSplash && isFirstVisit) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-blue-600 to-purple-700">
+      <div
+        className={`${inter.className} fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-blue-600 to-purple-700`}
+      >
         <div className="text-center text-white animate-fade-in">
-          <h1 className="text-4xl font-bold mb-8">Your App</h1>
-          <div className="w-10 h-10 border-4 border-white/30 border-t-white rounded-full animate-spin mx-auto"></div>
+          <h1 className="text-4xl font-bold italic mb-8">Awoof
+          <Image
+            src= {graduationCap}
+            alt="Graduation Cap"
+            className="relative -top-14 left-1 w-8 h-8 rotate-12"
+          /></h1>
+          
         </div>
       </div>
-    )
+    );
   }
 
-  return children
+  return children;
 }
