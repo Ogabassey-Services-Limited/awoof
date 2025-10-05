@@ -1,0 +1,49 @@
+services:
+  web:
+    container_name: awoof-frontend
+    build: ../apps/web
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    # depends_on:
+    #   - backend
+
+  backend:
+    build: ../apps/backend
+    # image: quadlcore/awoof-backend
+    container_name: awoof-backend
+    user: "node"
+    working_dir: /usr/src/app
+    environment:
+      - NODE_ENV=production
+    volumes:
+      # - ../apps/backend:/usr/src/app
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5000:5000"
+    # command: sh -c "npm install && npm run dev"
+
+  db:
+    container_name: Awoof_postgres_container
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: awoofDB
+    ports:
+      - "5432:5432"
+
+  pgadmin:
+    container_name: Awoof_pgadmin4_container
+    image: dpage/pgadmin4
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: root
+    ports:
+      - "5050:80"
+
+volumes:
+  db_data:

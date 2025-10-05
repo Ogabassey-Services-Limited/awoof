@@ -1,0 +1,19 @@
+FROM node:slim
+
+ENV NODE_ENV=development
+
+# Create app directory
+WORKDIR /usr/src/app
+
+# Install app dependencies
+COPY package*.json ./
+
+RUN npm install
+
+# Copy source code
+COPY . .
+
+EXPOSE 8080
+
+# Use tsx with watch mode for hot reloading
+CMD ["npx", "tsx", "watch", "src/index.ts"]

@@ -1,0 +1,136 @@
+services:
+  web:
+    container_name: awoof-frontend-dev
+    build: 
+      context: ../apps/web
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../apps/web:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=true
+    env_file:
+      - .env
+    develop:
+      watch:
+        # Sync source files
+        - action: sync
+          path: ../apps/web/src
+          target: /app/src
+          ignore:
+            - node_modules/
+        
+        # Sync app directory (for Next.js App Router)
+        - action: sync
+          path: ../apps/web/app
+          target: /app/app
+          ignore:
+            - node_modules/
+        
+        # Sync pages directory (for Next.js Pages Router)
+        - action: sync+restart
+          path: ../apps/web/pages
+          target: /app/pages
+          ignore:
+            - node_modules/
+        
+        # Sync components
+        - action: sync
+          path: ../apps/web/components
+          target: /app/components
+          ignore:
+            - node_modules/
+        
+        # Sync styles
+        - action: sync
+          path: ../apps/web/styles
+          target: /app/styles
+        
+        # Sync public assets
+        - action: sync
+          path: ../apps/web/public
+          target: /app/public
+        
+        # Rebuild on package.json changes
+        - action: rebuild
+          path: ../apps/web/package.json
+        
+        # Sync config files with restart
+        - action: sync+restart
+          path: ../apps/web/next.config.js
+          target: /app/next.config.js
+        
+        - action: sync+restart
+          path: ../apps/web/next.config.mjs
+          target: /app/next.config.mjs
+        
+        - action: sync+restart
+          path: ../apps/web/tailwind.config.js
+          target: /app/tailwind.config.js
+        
+        - action: sync+restart
+          path: ../apps/web/tailwind.config.ts
+          target: /app/tailwind.config.ts
+
+
+  backend:
+    build:
+      context: ../apps/backend
+      dockerfile: Dockerfile.dev
+    container_name: awoof-backend-dev
+    working_dir: /usr/src/app
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ../apps/backend:/usr/src/app
+      - /usr/src/app/node_modules
+    ports:
+      - "5000:5000"
+    depends_on:
+      - db
+    develop:
+      watch:
+        # Watch for changes in source files
+        - action: sync
+          path: ../apps/backend/src
+          target: /usr/src/app/src
+          ignore:
+            - node_modules/
+        
+        # Watch package.json for dependency changes
+        - action: rebuild
+          path: ../apps/backend/package.json
+        
+        # Sync other config files
+        - action: sync
+          path: ../apps/backend/tsconfig.json
+          target: /usr/src/app/tsconfig.json
+
+  db:
+    container_name: awoof_postgres_container_dev
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: awoofDB
+    ports:
+      - "5432:5432"
+
+  pgadmin:
+    container_name: awoof_pgadmin_container_dev
+    image: dpage/pgadmin4
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: root
+    ports:
+      - "5050:80"
+
+volumes:
+  db_data:
