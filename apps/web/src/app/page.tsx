@@ -3,10 +3,6 @@
 
 import Header from "./components/Header";
 import Banner from "./components/HomePage/banner";
-import PhoneImage from "../../public/images/iPhone 13 Pro.svg";
-import GraduationCap from "../../public/images/noto_graduation-large-cap.svg";
-import BestDeals from "../../public/images/BestDealsIcon.svg";
-import New from "../../public/images/NewIcon.svg";
 import Cloud from "../../public/images/Cloud.svg";
 import Image from "next/image";
 import About from "./components/HomePage/About";
@@ -14,6 +10,7 @@ import TopDeals from "./components/HomePage/TopDeals";
 import FAQ from "./components/HomePage/FAQ";
 import Partner from "./components/HomePage/Partner";
 import Footer from "./components/Footer";
+import AnimatedTop from "./components/HomePage/AnimatedTop";
 
 export default async function Home() {
   // const headersList = await headers(); //as unknown as Awaited<ReturnType<typeof headers>>;
@@ -33,28 +30,7 @@ export default async function Home() {
         </div>
 
         {/* background phone */}
-        <div className="absolute bottom-0 right-0">
-          <Image
-          className="absolute right-[250px] bottom-[480px] z-10"
-          src={GraduationCap}
-          alt="Graduation Cap"
-        />
-        <Image
-          className="absolute right-[420px] bottom-[150px] z-10"
-          src={BestDeals}
-          alt="Best Deals"
-          />
-          <Image 
-          className="absolute right-[40px] bottom-[600px] z-10"
-          src={New}
-          alt="New"
-          />
-        <Image
-          className="relative bottom-0 right-0 z-5"
-          src={PhoneImage}
-          alt="Phone"
-        />
-        </div>
+        <AnimatedTop/>
         
         <Image
           className="absolute bottom-0 left-0 z-0"
