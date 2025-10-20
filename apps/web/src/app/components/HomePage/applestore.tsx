@@ -1,13 +1,14 @@
+import { Button } from "@/components/ui/button";
 import React from "react";
 
 function Applestore() {
   return (
-    <div className="flex w-48 h-14 md:min-w-44 lg:w-64 lg:h-16 bg-black text-white rounded-xl over-2000:rounded-[0.8vw] items-center justify-center border border-white over-2000:min-w-[15vw] over-2000:h-auto over-2000:pb-3 over-2000:pt-2">
-      <div className="mr-3">
+    <Button className="flex bg-white text-black rounded-3xl items-center justify-center h-12 px-9 ">
+      <div className="">
         <svg
           viewBox="0 0 384 512"
           width="30"
-          className="over-2000:w-[2.5vw] over-2000:h-[2.5vw]"
+          className="!w-[38px] !h-[38px]"
         >
           <path
             fill="currentColor"
@@ -16,12 +17,11 @@ function Applestore() {
         </svg>
       </div>
       <div>
-        <div className="text-xs over-2000:text-[0.8vw]/[1vw]">Download on the</div>
-        <div className="text-2xl over-2000:text-[1.4vw]/[1.2vw] font-semibold font-sans -mt-1 ">
-          App Store
+        <div className="font-semibold text-[12px] leading-[100%] tracking-[0px] font-inter">
+          Download for IOS
         </div>
       </div>
-    </div>
+    </Button>
   );
 }
 

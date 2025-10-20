@@ -2,11 +2,20 @@ import React from 'react';
 import Image from 'next/image';
 import GraduationCap from "../../../public/images/noto_graduation-cap.svg";
 
-export default function Logo() {
+interface LogoProps {
+  color?: 'blue'|'white';
+}
+
+export default function Logo({ color = 'white' }: LogoProps) {
+  const colorClass = {
+    white: 'text-white',
+    blue: 'text-[#1D4ED8]',
+  }
+
   return (
     <div className="relative inline-block">
         {/* Awoof Text */}
-      <span className="text-4xl font-bold text-white italic">
+        <span className={`text-4xl font-bold italic ${colorClass[color]}`}>
         Awoof
       </span>
 
