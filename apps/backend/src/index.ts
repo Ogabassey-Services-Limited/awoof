@@ -78,6 +78,7 @@ class App {
           auth: '/api/auth',
           students: '/api/students',
           universities: '/api/universities',
+          verification: '/api/verification',
         },
       });
     });
@@ -109,6 +110,16 @@ class App {
       console.log(' University routes registered successfully');
     } catch (error) {
       console.error(' Failed to register university routes:', error);
+      throw error;
+    }
+
+    // Verification routes
+    try {
+      const verificationRoutes = await import('./routes/verification.routes.js');
+      this.app.use('/api/verification', verificationRoutes.default);
+      console.log(' Verification routes registered successfully');
+    } catch (error) {
+      console.error(' Failed to register verification routes:', error);
       throw error;
     }
   }

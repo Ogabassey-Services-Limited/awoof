@@ -66,6 +66,9 @@ const envSchema = z.object({
     CORS_ORIGIN: z.string().default('http://localhost:3000'),
     RATE_LIMIT_WINDOW_MS: z.string().regex(/^\d+$/).transform(Number).default('900000'), // 15 minutes
     RATE_LIMIT_MAX_REQUESTS: z.string().regex(/^\d+$/).transform(Number).default('100'),
+
+    // Frontend URL (for magic links and redirects)
+    FRONTEND_URL: z.string().url().default('http://localhost:3000'),
 });
 
 /**
@@ -170,6 +173,11 @@ export const config = {
     rateLimit: {
         windowMs: env.RATE_LIMIT_WINDOW_MS,
         maxRequests: env.RATE_LIMIT_MAX_REQUESTS,
+    },
+
+    // Frontend
+    frontend: {
+        url: env.FRONTEND_URL,
     },
 } as const;
 

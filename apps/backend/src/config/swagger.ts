@@ -191,6 +191,28 @@ Access tokens expire in 15 minutes. Use the refresh token endpoint to get a new 
                         },
                     },
                 },
+                VerificationMethod: {
+                    type: 'object',
+                    properties: {
+                        methodType: {
+                            type: 'string',
+                            enum: ['portal', 'email', 'registration', 'whatsapp'],
+                            example: 'email',
+                        },
+                        isAvailable: {
+                            type: 'boolean',
+                            example: true,
+                        },
+                        priority: {
+                            type: 'integer',
+                            example: 1,
+                        },
+                        reason: {
+                            type: 'string',
+                            nullable: true,
+                        },
+                    },
+                },
             },
             responses: {
                 BadRequest: {

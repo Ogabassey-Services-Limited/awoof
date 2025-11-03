@@ -5,7 +5,7 @@
  * Follows Single Responsibility Principle - only handles student operations
  */
 
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
 import { db } from '../config/database.js';
 import {
     NotFoundError,
