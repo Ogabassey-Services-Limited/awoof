@@ -7,11 +7,13 @@
 
 import express, { type Express } from 'express';
 import cors from 'cors';
+import swaggerUi from 'swagger-ui-express';
 import { config } from './config/env.js';
 import { db } from './config/database.js';
 import { redis } from './config/redis.js';
 import { errorHandler } from './common/middleware/errorHandler.js';
 import { logger } from './common/middleware/logger.js';
+import { swaggerSpec } from './config/swagger.js';
 
 /**
  * Application class
@@ -54,6 +56,12 @@ class App {
         environment: config.env,
       });
     });
+
+    // Swagger API documentation
+    this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+      customCss: '.swagger-ui .topbar { display: none }',
+      customSiteTitle: 'Awoof API Documentation',
+    }));
   }
 
   /**
@@ -65,7 +73,12 @@ class App {
       res.json({
         message: 'Awoof Backend API',
         version: '1.0.0',
-        documentation: '/api/docs',
+        documentation: '/api-docs',
+        endpoints: {
+          auth: '/api/auth',
+          students: '/api/students',
+          universities: '/api/universities',
+        },
       });
     });
 
@@ -76,6 +89,26 @@ class App {
       console.log('✅ Auth routes registered successfully');
     } catch (error) {
       console.error('❌ Failed to register auth routes:', error);
+      throw error;
+    }
+
+    // Student routes
+    try {
+      const studentRoutes = await import('./routes/students.routes.js');
+      this.app.use('/api/students', studentRoutes.default);
+      console.log(' Student routes registered successfully');
+    } catch (error) {
+      console.error(' Failed to register student routes:', error);
+      throw error;
+    }
+
+    // University routes
+    try {
+      const universityRoutes = await import('./routes/universities.routes.js');
+      this.app.use('/api/universities', universityRoutes.default);
+      console.log(' University routes registered successfully');
+    } catch (error) {
+      console.error(' Failed to register university routes:', error);
       throw error;
     }
   }
@@ -126,10 +159,10 @@ class App {
       // Start server
       this.app.listen(config.port, () => {
         console.log(`
-Awoof Backend API
-Environment: ${config.env}
-Server running on http://localhost:${config.port}
-Started at: ${new Date().toISOString()}
+          Awoof Backend API
+          Environment: ${config.env}
+          Server running on http://localhost:${config.port}
+          Started at: ${new Date().toISOString()}
         `);
       });
     } catch (error) {
