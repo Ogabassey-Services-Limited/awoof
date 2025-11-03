@@ -54,6 +54,10 @@ const envSchema = z.object({
     WHATSAPP_API_URL: z.string().url().optional().or(z.literal('')),
     PAYSTACK_SECRET_KEY: z.string().optional(),
     PAYSTACK_PUBLIC_KEY: z.string().optional(),
+    // Brevo (Email Service)
+    BREVO_API_KEY: z.string().optional(),
+    BREVO_FROM_NAME: z.string().optional(),
+    EMAIL_FROM: z.string().email().optional(),
 
     // Monitoring
     SENTRY_DSN: z.string().url().optional().or(z.literal('')),

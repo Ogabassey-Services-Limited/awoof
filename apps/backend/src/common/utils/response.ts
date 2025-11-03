@@ -43,6 +43,21 @@ export const sendSuccess = <T>(
 };
 
 /**
+ * Simplified success response (alias for convenience)
+ */
+export const success = <T>(
+    res: Response,
+    options: {
+        message?: string;
+        data: T;
+        meta?: SuccessResponse['meta'];
+    },
+    statusCode: number = 200
+): void => {
+    sendSuccess(res, options.data, statusCode, options.message, options.meta);
+};
+
+/**
  * Send paginated response
  */
 export const sendPaginated = <T>(

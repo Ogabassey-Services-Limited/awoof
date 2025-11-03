@@ -23,8 +23,7 @@ class App {
   constructor() {
     this.app = express();
     this.initializeMiddlewares();
-    this.initializeRoutes();
-    this.initializeErrorHandling();
+    // Note: Error handling must be initialized AFTER routes
   }
 
   /**
@@ -47,7 +46,7 @@ class App {
     this.app.use(logger);
 
     // Health check (before authentication)
-    this.app.get('/health', (req, res) => {
+    this.app.get('/health', (_req, res) => {
       res.json({
         status: 'ok',
         timestamp: new Date().toISOString(),
@@ -60,9 +59,9 @@ class App {
   /**
    * Initialize routes
    */
-  private initializeRoutes(): void {
+  private async initializeRoutes(): Promise<void> {
     // Root route
-    this.app.get('/', (req, res) => {
+    this.app.get('/', (_req, res) => {
       res.json({
         message: 'Awoof Backend API',
         version: '1.0.0',
@@ -70,10 +69,15 @@ class App {
       });
     });
 
-    // API routes will be added here
-    // Example: this.app.use('/api/v1/auth', authRoutes);
-    // Example: this.app.use('/api/v1/students', studentRoutes);
-    // Example: this.app.use('/api/v1/verify', verifyApiRoutes);
+    // Authentication routes
+    try {
+      const authRoutes = await import('./routes/auth.routes.js');
+      this.app.use('/api/auth', authRoutes.default);
+      console.log('✅ Auth routes registered successfully');
+    } catch (error) {
+      console.error('❌ Failed to register auth routes:', error);
+      throw error;
+    }
   }
 
   /**
@@ -81,7 +85,7 @@ class App {
    */
   private initializeErrorHandling(): void {
     // 404 handler
-    this.app.use((req, res) => {
+    this.app.use((_req, res) => {
       res.status(404).json({
         success: false,
         error: {
@@ -112,6 +116,12 @@ class App {
 
       // Initialize Redis
       redis.initialize();
+
+      // Initialize routes (must be after database is ready)
+      await this.initializeRoutes();
+
+      // Initialize error handling (must be AFTER routes)
+      this.initializeErrorHandling();
 
       // Start server
       this.app.listen(config.port, () => {

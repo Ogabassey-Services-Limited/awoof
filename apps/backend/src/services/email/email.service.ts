@@ -1,0 +1,106 @@
+/**
+ * Email Service
+ * 
+ * Handles email sending using Brevo (formerly Sendinblue)
+ * Follows Single Responsibility Principle - only handles email operations
+ */
+
+// @ts-ignore - sib-api-v3-sdk doesn't have TypeScript definitions
+import SibApiV3Sdk from 'sib-api-v3-sdk';
+
+/**
+ * Configure Brevo API client
+ */
+const defaultClient = SibApiV3Sdk.ApiClient.instance;
+const apiKey = defaultClient.authentications['api-key'];
+
+if (!process.env.BREVO_API_KEY) {
+    console.warn('⚠️ BREVO_API_KEY is not defined. Email functionality will be limited.');
+} else {
+    apiKey.apiKey = process.env.BREVO_API_KEY;
+}
+
+const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+
+/**
+ * Send email with retry logic
+ */
+export const sendEmail = async (
+    to: string,
+    subject: string,
+    html: string,
+    retries: number = 3
+): Promise<{ success: boolean; messageId?: string; error?: string }> => {
+    // Check if Brevo API key is configured
+    if (!process.env.BREVO_API_KEY) {
+        console.error('❌ BREVO_API_KEY is not configured');
+        return { success: false, error: 'Email service not configured' };
+    }
+
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            console.log(`📧 Attempting to send email to: ${to} (attempt ${attempt}/${retries})`);
+
+            const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+
+            sendSmtpEmail.subject = subject;
+            sendSmtpEmail.htmlContent = html;
+            sendSmtpEmail.sender = {
+                name: process.env.BREVO_FROM_NAME || 'Awoof',
+                email: process.env.EMAIL_FROM || 'noreply@awoof.com',
+            };
+            sendSmtpEmail.to = [{ email: to }];
+
+            const result = await apiInstance.sendTransacEmail(sendSmtpEmail);
+
+            console.log('✅ Email sent successfully via Brevo API:', result.messageId);
+            return { success: true, messageId: result.messageId };
+        } catch (error: any) {
+            console.error(`❌ Email sending failed (attempt ${attempt}/${retries}):`, error.message);
+
+            if (attempt === retries) {
+                console.error('❌ All retry attempts failed');
+                return { success: false, error: error.message };
+            }
+
+            // Exponential backoff: 2s, 4s, 8s
+            const delay = Math.pow(2, attempt) * 1000;
+            console.log(`⏳ Retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+        }
+    }
+
+    return { success: false, error: 'Max retries exceeded' };
+};
+
+/**
+ * Send OTP email for password reset
+ */
+export const sendPasswordResetOTP = async (
+    email: string,
+    otp: string
+): Promise<{ success: boolean; messageId?: string; error?: string }> => {
+    const subject = 'Reset your Awoof password';
+    const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background-color: #002620; padding: 20px; text-align: center;">
+                <h1 style="color: #EFFE3D; margin: 0;">Awoof</h1>
+            </div>
+            <div style="padding: 30px; background-color: #f9f9f9;">
+                <h2 style="color: #002620;">Reset Your Password</h2>
+                <p>You requested to reset your password. Please use the OTP code below:</p>
+                <div style="background-color: #002620; color: #EFFE3D; padding: 20px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; margin: 20px 0;">
+                    ${otp}
+                </div>
+                <p>This code will expire in 10 minutes.</p>
+                <p>If you didn't request a password reset, please ignore this email.</p>
+            </div>
+            <div style="background-color: #002620; padding: 20px; text-align: center; color: #EFFE3D;">
+                <p style="margin: 0;">© 2025 Awoof. All rights reserved.</p>
+            </div>
+        </div>
+    `;
+
+    return await sendEmail(email, subject, html);
+};
+

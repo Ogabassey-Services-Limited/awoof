@@ -12,8 +12,11 @@ declare global {
             // User information from JWT token
             user?: {
                 id: string;
+                userId: string;
                 email: string;
                 role: 'student' | 'vendor' | 'admin';
+                iat?: number;
+                exp?: number;
             };
 
             // API key information (for Verify API)

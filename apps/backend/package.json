@@ -21,7 +21,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/jsonwebtoken": "^9.0.7",
-    "@types/node": "^24.3.0",
+    "@types/node": "^24.10.0",
     "@typescript-eslint/eslint-plugin": "^8.18.0",
     "@typescript-eslint/parser": "^8.18.0",
     "eslint": "^9.15.0",
@@ -40,6 +40,7 @@
     "ioredis": "^5.4.1",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.13.1",
+    "sib-api-v3-sdk": "^8.5.0",
     "zod": "^3.23.8",
     "zod-validation-error": "^1.2.0"
   }
