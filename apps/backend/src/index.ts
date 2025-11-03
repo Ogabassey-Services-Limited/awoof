@@ -104,20 +104,26 @@ class App {
       // Initialize database
       db.initialize();
 
+      // Run database migrations
+      if (process.env.RUN_MIGRATIONS !== 'false') {
+        const { runMigrations } = await import('./database/migrations/run.js');
+        await runMigrations();
+      }
+
       // Initialize Redis
       redis.initialize();
 
       // Start server
       this.app.listen(config.port, () => {
         console.log(`
-🚀 Awoof Backend API
-📍 Environment: ${config.env}
-🌐 Server running on http://localhost:${config.port}
-📅 Started at: ${new Date().toISOString()}
+Awoof Backend API
+Environment: ${config.env}
+Server running on http://localhost:${config.port}
+Started at: ${new Date().toISOString()}
         `);
       });
     } catch (error) {
-      console.error('❌ Failed to start server:', error);
+      console.error('Failed to start server:', error);
       process.exit(1);
     }
   }
@@ -126,15 +132,15 @@ class App {
    * Graceful shutdown
    */
   public async shutdown(): Promise<void> {
-    console.log('🛑 Shutting down server...');
+    console.log('Shutting down server...');
 
     try {
       await db.close();
       await redis.close();
-      console.log('✅ Server shut down gracefully');
+      console.log('Server shut down gracefully');
       process.exit(0);
     } catch (error) {
-      console.error('❌ Error during shutdown:', error);
+      console.error('Error during shutdown:', error);
       process.exit(1);
     }
   }
@@ -159,11 +165,11 @@ process.on('SIGINT', () => app.shutdown());
 
 // Handle unhandled errors
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
 process.on('uncaughtException', (error) => {
-  console.error('❌ Uncaught Exception:', error);
+  console.error('Uncaught Exception:', error);
   process.exit(1);
 });
 

@@ -9,7 +9,8 @@ import { z } from 'zod';
 import dotenv from 'dotenv';
 
 // Load environment variables
-dotenv.config();
+// override: false ensures docker-compose env vars take precedence
+dotenv.config({ override: false });
 
 /**
  * Environment variable schema

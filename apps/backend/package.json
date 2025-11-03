@@ -13,8 +13,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint src --ext .ts",
     "type-check": "tsc --noEmit",
-    "db:migrate": "node -r dotenv/config dist/database/migrations/run.js",
-    "db:generate": "node -r dotenv/config dist/database/migrations/generate.js"
+    "db:migrate": "tsx src/database/migrations/run.ts",
+    "db:rollback": "echo 'Rollback not implemented yet'"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",

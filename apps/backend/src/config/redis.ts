@@ -38,23 +38,35 @@ class RedisClient {
             return this.client;
         }
 
-        const connectionOptions = {
-            host: config.redis.host,
-            port: config.redis.port,
-            ...(config.redis.password && { password: config.redis.password }),
+        const baseOptions = {
             retryStrategy: (times: number) => {
                 const delay = Math.min(times * 50, 2000);
                 return delay;
             },
             maxRetriesPerRequest: 3,
             lazyConnect: true,
+            ...(config.redis.password && { password: config.redis.password }),
         };
 
-        // Use connection string if provided
-        if (config.redis.url) {
-            this.client = new Redis(config.redis.url, connectionOptions);
+        // Prioritize host/port if host is not 'localhost' (Docker environment)
+        // Otherwise use URL if provided
+        if (config.redis.host !== 'localhost' && config.redis.host !== '127.0.0.1') {
+            // Docker environment - use host/port directly
+            this.client = new Redis({
+                host: config.redis.host,
+                port: config.redis.port,
+                ...baseOptions,
+            });
+        } else if (config.redis.url) {
+            // Local development - use URL if provided
+            this.client = new Redis(config.redis.url, baseOptions);
         } else {
-            this.client = new Redis(connectionOptions);
+            // Fallback to host/port
+            this.client = new Redis({
+                host: config.redis.host,
+                port: config.redis.port,
+                ...baseOptions,
+            });
         }
 
         // Event handlers
