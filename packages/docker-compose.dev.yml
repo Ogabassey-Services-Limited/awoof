@@ -70,6 +70,10 @@ services:
           target: /app/next.config.mjs
 
         - action: sync+restart
+          path: ../apps/web/next.config.ts
+          target: /app/next.config.ts
+
+        - action: sync+restart
           path: ../apps/web/tailwind.config.js
           target: /app/tailwind.config.js
 
