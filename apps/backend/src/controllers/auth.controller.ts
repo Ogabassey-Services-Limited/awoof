@@ -11,7 +11,8 @@ import { redis } from '../config/redis.js';
 import { jwtService } from '../services/auth/jwt.service.js';
 import { passwordService } from '../services/auth/password.service.js';
 import { generateOTP, getOTPExpiryDate, isOTPExpired } from '../services/auth/otp.service.js';
-import { sendPasswordResetOTP } from '../services/email/email.service.js';
+import { sendPasswordResetOTP, sendEmailVerificationOTP } from '../services/email/email.service.js';
+import { verifyStudentEmail } from '../services/verification/student-email-verification.service.js';
 import {
     BadRequestError,
     UnauthorizedError,
@@ -31,11 +32,25 @@ const registerSchema = z.object({
         errorMap: () => ({ message: 'Role must be student or vendor' }),
     }),
     name: z.string().min(2, 'Name must be at least 2 characters'),
+    // Required for students, optional for vendors
+    university: z.string().uuid('Invalid university ID').optional().or(z.literal('')),
+    matricNumber: z.string().optional().or(z.literal('')),
+}).refine((data) => {
+    // University is required for students
+    if (data.role === 'student') {
+        return data.university && data.university.trim() !== '';
+    }
+    return true;
+}, {
+    message: 'University is required for student registration',
+    path: ['university'],
 });
 
 const loginSchema = z.object({
     email: z.string().email('Invalid email address'),
     password: z.string().min(1, 'Password is required'),
+    role: z.enum(['admin', 'vendor', 'student']).optional(), // Optional role check for route-specific logins
+    rememberMe: z.boolean().optional().default(false), // Remember me checkbox
 });
 
 const refreshTokenSchema = z.object({
@@ -73,6 +88,21 @@ export class AuthController {
             throw new ConflictError('User with this email already exists');
         }
 
+        // For students, verify email against university database before registration
+        if (validated.role === 'student') {
+            const universityId = validated.university && validated.university.trim() !== '' ? validated.university : null;
+            if (!universityId) {
+                throw new BadRequestError('University is required for student registration');
+            }
+
+            const emailVerification = await verifyStudentEmail(universityId, validated.email);
+            if (!emailVerification.verified) {
+                throw new BadRequestError(
+                    emailVerification.error || 'Email verification failed. Please ensure you are using your official university email.'
+                );
+            }
+        }
+
         // Hash password
         const passwordHash = await passwordService.hashPassword(validated.password);
 
@@ -94,10 +124,25 @@ export class AuthController {
 
             // Create student or vendor profile if needed
             if (validated.role === 'student') {
+                // Get university name if university ID is provided
+                let universityName: string | null = null;
+                const universityId = validated.university && validated.university.trim() !== '' ? validated.university : null;
+                if (universityId) {
+                    const universityResult = await client.query(
+                        `SELECT name FROM universities WHERE id = $1 AND is_active = true`,
+                        [universityId]
+                    );
+                    if (universityResult.rows.length > 0) {
+                        universityName = universityResult.rows[0].name;
+                    }
+                }
+
+                const matricNumber = validated.matricNumber && validated.matricNumber.trim() !== '' ? validated.matricNumber : null;
+
                 await client.query(
-                    `INSERT INTO students (user_id, name, status)
-                     VALUES ($1, $2, 'active')`,
-                    [user.id, validated.name]
+                    `INSERT INTO students (user_id, name, university, registration_number, status)
+                     VALUES ($1, $2, $3, $4, 'active')`,
+                    [user.id, validated.name, universityName, matricNumber]
                 );
             } else if (validated.role === 'vendor') {
                 await client.query(
@@ -105,6 +150,33 @@ export class AuthController {
                      VALUES ($1, $2, 'pending')`,
                     [user.id, validated.name]
                 );
+            }
+
+            // For vendors and students, generate and send email verification OTP
+            if (validated.role === 'vendor' || validated.role === 'student') {
+                const emailOTP = generateOTP(6);
+                const otpExpiresAt = getOTPExpiryDate();
+
+                // Store OTP in database
+                await client.query(
+                    `UPDATE users 
+                     SET email_verification_otp = $1, email_verification_otp_expires_at = $2
+                     WHERE id = $3`,
+                    [emailOTP, otpExpiresAt, user.id]
+                );
+
+                // Send verification email (don't await to avoid blocking response)
+                sendEmailVerificationOTP(validated.email, emailOTP, validated.name, validated.role)
+                    .then((result) => {
+                        if (result.success) {
+                            console.log(`✅ Email verification OTP sent to ${validated.role}: ${validated.email}`);
+                        } else {
+                            console.error(`❌ Failed to send email verification OTP: ${result.error}`);
+                        }
+                    })
+                    .catch((error) => {
+                        console.error('❌ Error sending email verification OTP:', error);
+                    });
             }
 
             await client.query('COMMIT');
@@ -127,7 +199,9 @@ export class AuthController {
             }
 
             success(res, {
-                message: 'User registered successfully',
+                message: validated.role === 'vendor'
+                    ? 'User registered successfully. Please check your email for verification code.'
+                    : 'User registered successfully',
                 data: {
                     user: {
                         id: user.id,
@@ -136,6 +210,7 @@ export class AuthController {
                         verificationStatus: user.verification_status,
                     },
                     tokens,
+                    requiresEmailVerification: validated.role === 'vendor',
                 },
             }, 201);
         } catch (error) {
@@ -182,19 +257,27 @@ export class AuthController {
             throw new UnauthorizedError('Invalid email or password');
         }
 
-        // Generate tokens
+        // If role is specified in login request, verify user has that role
+        if (validated.role && user.role !== validated.role) {
+            throw new UnauthorizedError(`Access denied. This login is restricted to ${validated.role} users only.`);
+        }
+
+        // Generate tokens (with rememberMe option)
+        const rememberMe = validated.rememberMe ?? false;
         const tokens = jwtService.generateTokenPair({
             userId: user.id,
             email: user.email,
             role: user.role,
-        });
+        }, rememberMe);
 
         // Store refresh token in Redis
+        // If remember me is checked, store for 30 days, otherwise 7 days
+        const redisExpiry = rememberMe ? 30 * 24 * 60 * 60 : 7 * 24 * 60 * 60;
         const redisClient = redis.getClient();
         if (redis.isConnected()) {
             await redisClient.setex(
                 `refresh_token:${user.id}`,
-                7 * 24 * 60 * 60, // 7 days
+                redisExpiry,
                 tokens.refreshToken
             );
         }
@@ -313,10 +396,11 @@ export class AuthController {
         success(res, {
             message: 'User retrieved successfully',
             data: {
-                user: {
-                    ...user,
-                    profile,
-                },
+                id: user.id,
+                email: user.email,
+                role: user.role,
+                verificationStatus: user.verification_status,
+                profile,
             },
         }, 200);
     }
@@ -326,7 +410,7 @@ export class AuthController {
      */
     public async forgotPassword(req: Request, res: Response): Promise<void> {
         // Validate input
-        const { email } = req.body;
+        const { email, role } = req.body;
 
         if (!email) {
             throw new BadRequestError('Email is required');
@@ -334,7 +418,7 @@ export class AuthController {
 
         // Find user
         const userResult = await db.query(
-            `SELECT id, email FROM users WHERE email = $1 AND deleted_at IS NULL`,
+            `SELECT id, email, role FROM users WHERE email = $1 AND deleted_at IS NULL`,
             [email]
         );
 
@@ -348,6 +432,16 @@ export class AuthController {
         }
 
         const user = userResult.rows[0];
+
+        // If role is specified in request, verify user has that role
+        if (role && user.role !== role) {
+            // Still return success to not reveal if email exists (security best practice)
+            success(res, {
+                message: 'If the email exists, an OTP has been sent',
+                data: {},
+            });
+            return;
+        }
 
         // Generate OTP
         const otp = generateOTP();
@@ -565,6 +659,165 @@ export class AuthController {
         success(res, {
             message: 'Password updated successfully',
             data: {},
+        });
+    }
+
+    /**
+     * Verify email with OTP (for vendor and student registration)
+     */
+    public async verifyEmail(req: Request, res: Response): Promise<void> {
+        const schema = z.object({
+            email: z.string().email('Invalid email address'),
+            otp: z.string().length(6, 'OTP must be 6 digits'),
+        });
+
+        const validated = schema.parse(req.body);
+
+        // Get user by email
+        const userResult = await db.query(
+            `SELECT id, email, email_verification_otp, email_verification_otp_expires_at, 
+                    verification_status, role
+             FROM users 
+             WHERE email = $1 AND deleted_at IS NULL`,
+            [validated.email]
+        );
+
+        if (userResult.rows.length === 0) {
+            throw new UnauthorizedError('User not found');
+        }
+
+        const user = userResult.rows[0];
+
+        // Check if user is a vendor or student
+        if (user.role !== 'vendor' && user.role !== 'student') {
+            throw new BadRequestError('Email verification is only available for vendors and students');
+        }
+
+        // Check if email is already verified
+        if (user.verification_status === 'verified') {
+            throw new BadRequestError('Email is already verified');
+        }
+
+        // Check if OTP exists
+        if (!user.email_verification_otp) {
+            throw new BadRequestError('No verification OTP found. Please request a new one.');
+        }
+
+        // Check if OTP is expired
+        if (isOTPExpired(user.email_verification_otp_expires_at)) {
+            throw new BadRequestError('Verification OTP has expired. Please request a new one.');
+        }
+
+        // Verify OTP
+        if (user.email_verification_otp !== validated.otp) {
+            throw new UnauthorizedError('Invalid verification OTP');
+        }
+
+        // Update user verification status and clear OTP
+        await db.query(
+            `UPDATE users 
+             SET verification_status = 'verified',
+                 email_verification_otp = NULL,
+                 email_verification_otp_expires_at = NULL,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $1`,
+            [user.id]
+        );
+
+        success(res, {
+            message: 'Email verified successfully',
+            data: {
+                verified: true,
+            },
+        });
+    }
+
+    /**
+     * Resend email verification OTP
+     */
+    public async resendEmailVerification(req: Request, res: Response): Promise<void> {
+        const schema = z.object({
+            email: z.string().email('Invalid email address'),
+        });
+
+        const validated = schema.parse(req.body);
+
+        // Get user by email
+        const userResult = await db.query(
+            `SELECT id, email, verification_status, role, name
+             FROM users 
+             WHERE email = $1 AND deleted_at IS NULL`,
+            [validated.email]
+        );
+
+        if (userResult.rows.length === 0) {
+            throw new UnauthorizedError('User not found');
+        }
+
+        const user = userResult.rows[0];
+
+        // Check if user is a vendor or student
+        if (user.role !== 'vendor' && user.role !== 'student') {
+            throw new BadRequestError('Email verification is only available for vendors and students');
+        }
+
+        // Check if email is already verified
+        if (user.verification_status === 'verified') {
+            throw new BadRequestError('Email is already verified');
+        }
+
+        // Generate new OTP
+        const emailOTP = generateOTP(6);
+        const otpExpiresAt = getOTPExpiryDate();
+
+        // Store OTP in database
+        await db.query(
+            `UPDATE users 
+             SET email_verification_otp = $1, email_verification_otp_expires_at = $2,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = $3`,
+            [emailOTP, otpExpiresAt, user.id]
+        );
+
+        // Send verification email
+        const emailResult = await sendEmailVerificationOTP(validated.email, emailOTP, user.name, user.role);
+
+        if (!emailResult.success) {
+            throw new BadRequestError(`Failed to send verification email: ${emailResult.error}`);
+        }
+
+        success(res, {
+            message: 'Verification OTP sent successfully. Please check your email.',
+            data: {},
+        });
+    }
+
+    /**
+     * Verify student email against university database
+     * Used during registration to ensure email belongs to the selected university
+     */
+    public async verifyStudentEmail(req: Request, res: Response): Promise<void> {
+        const schema = z.object({
+            universityId: z.string().uuid('Invalid university ID'),
+            email: z.string().email('Invalid email address'),
+        });
+
+        const validated = schema.parse(req.body);
+
+        const verification = await verifyStudentEmail(validated.universityId, validated.email);
+
+        if (!verification.verified) {
+            throw new BadRequestError(
+                verification.error || 'Email verification failed. Please ensure you are using your official university email.'
+            );
+        }
+
+        success(res, {
+            message: 'Email verified successfully',
+            data: {
+                verified: true,
+                studentData: verification.studentData,
+            },
         });
     }
 }

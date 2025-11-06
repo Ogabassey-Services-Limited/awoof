@@ -57,9 +57,9 @@ class JWTService {
     /**
      * Generate refresh token
      */
-    public generateRefreshToken(payload: TokenPayload): string {
+    public generateRefreshToken(payload: TokenPayload, customExpiry?: string): string {
         const secret = config.jwt.refreshSecret;
-        const expiry = config.jwt.refreshExpiry;
+        const expiry = customExpiry || config.jwt.refreshExpiry;
         if (!secret || !expiry) {
             throw new Error('JWT refresh secret or expiry not configured');
         }
@@ -72,10 +72,12 @@ class JWTService {
     /**
      * Generate token pair (access + refresh)
      */
-    public generateTokenPair(payload: TokenPayload): TokenPair {
+    public generateTokenPair(payload: TokenPayload, rememberMe: boolean = false): TokenPair {
+        // If remember me is checked, extend refresh token to 30 days, otherwise use default (7 days)
+        const refreshExpiry = rememberMe ? '30d' : config.jwt.refreshExpiry;
         return {
             accessToken: this.generateAccessToken(payload),
-            refreshToken: this.generateRefreshToken(payload),
+            refreshToken: this.generateRefreshToken(payload, refreshExpiry),
         };
     }
 

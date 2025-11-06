@@ -116,15 +116,15 @@ export async function sendMagicLinkEmail(
     const subject = 'Verify your student email - Awoof';
     const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background-color: #002620; padding: 20px; text-align: center;">
-                <h1 style="color: #EFFE3D; margin: 0;">Awoof</h1>
+            <div style="background-color: #1D4ED8; padding: 20px; text-align: center;">
+                <h1 style="color: #FFFFFF; margin: 0;">Awoof</h1>
             </div>
             <div style="padding: 30px; background-color: #f9f9f9;">
-                <h2 style="color: #002620;">Verify Your Student Email</h2>
+                <h2 style="color: #1D4ED8;">Verify Your Student Email</h2>
                 ${universityName ? `<p>Welcome, ${universityName} student!</p>` : ''}
                 <p>Click the button below to verify your student email address:</p>
                 <div style="text-align: center; margin: 30px 0;">
-                    <a href="${magicLink}" style="background-color: #002620; color: #EFFE3D; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+                    <a href="${magicLink}" style="background-color: #1D4ED8; color: #FFFFFF; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
                         Verify Email
                     </a>
                 </div>
@@ -133,7 +133,7 @@ export async function sendMagicLinkEmail(
                 <p style="font-size: 12px; color: #666;">This link will expire in ${MAGIC_LINK_EXPIRY_MINUTES} minutes.</p>
                 <p>If you didn't request this verification, please ignore this email.</p>
             </div>
-            <div style="background-color: #002620; padding: 20px; text-align: center; color: #EFFE3D;">
+            <div style="background-color: #1D4ED8; padding: 20px; text-align: center; color: #FFFFFF;">
                 <p style="margin: 0;">© 2025 Awoof. All rights reserved.</p>
             </div>
         </div>

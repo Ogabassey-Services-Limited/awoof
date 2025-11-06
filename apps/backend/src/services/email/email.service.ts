@@ -83,19 +83,62 @@ export const sendPasswordResetOTP = async (
     const subject = 'Reset your Awoof password';
     const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="background-color: #002620; padding: 20px; text-align: center;">
-                <h1 style="color: #EFFE3D; margin: 0;">Awoof</h1>
+            <div style="background-color: #1D4ED8; padding: 20px; text-align: center;">
+                <h1 style="color: #FFFFFF; margin: 0;">Awoof</h1>
             </div>
             <div style="padding: 30px; background-color: #f9f9f9;">
-                <h2 style="color: #002620;">Reset Your Password</h2>
+                <h2 style="color: #1D4ED8;">Reset Your Password</h2>
                 <p>You requested to reset your password. Please use the OTP code below:</p>
-                <div style="background-color: #002620; color: #EFFE3D; padding: 20px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; margin: 20px 0;">
+                <div style="background-color: #1D4ED8; color: #FFFFFF; padding: 20px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; margin: 20px 0; border-radius: 5px;">
                     ${otp}
                 </div>
                 <p>This code will expire in 10 minutes.</p>
                 <p>If you didn't request a password reset, please ignore this email.</p>
             </div>
-            <div style="background-color: #002620; padding: 20px; text-align: center; color: #EFFE3D;">
+            <div style="background-color: #1D4ED8; padding: 20px; text-align: center; color: #FFFFFF;">
+                <p style="margin: 0;">© 2025 Awoof. All rights reserved.</p>
+            </div>
+        </div>
+    `;
+
+    return await sendEmail(email, subject, html);
+};
+
+/**
+ * Send email verification OTP for vendor and student registration
+ */
+export const sendEmailVerificationOTP = async (
+    email: string,
+    otp: string,
+    name?: string,
+    role: 'vendor' | 'student' = 'vendor'
+): Promise<{ success: boolean; messageId?: string; error?: string }> => {
+    const isStudent = role === 'student';
+    const subject = isStudent
+        ? 'Verify your email - Awoof Student Registration'
+        : 'Verify your email - Awoof Vendor Registration';
+
+    const greeting = name ? `Hello ${name},` : 'Hello,';
+    const registrationText = isStudent
+        ? 'Thank you for registering as a student on Awoof.'
+        : 'Thank you for registering as a vendor on Awoof.';
+
+    const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background-color: #1D4ED8; padding: 20px; text-align: center;">
+                <h1 style="color: #FFFFFF; margin: 0;">Awoof</h1>
+            </div>
+            <div style="padding: 30px; background-color: #f9f9f9;">
+                <h2 style="color: #1D4ED8;">Verify Your Email Address</h2>
+                <p>${greeting}</p>
+                <p>${registrationText} Please verify your email address using the OTP code below:</p>
+                <div style="background-color: #1D4ED8; color: #FFFFFF; padding: 20px; text-align: center; font-size: 24px; font-weight: bold; letter-spacing: 5px; margin: 20px 0; border-radius: 5px;">
+                    ${otp}
+                </div>
+                <p>This code will expire in 10 minutes.</p>
+                <p>If you didn't create an account with Awoof, please ignore this email.</p>
+            </div>
+            <div style="background-color: #1D4ED8; padding: 20px; text-align: center; color: #FFFFFF;">
                 <p style="margin: 0;">© 2025 Awoof. All rights reserved.</p>
             </div>
         </div>

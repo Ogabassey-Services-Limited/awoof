@@ -22,12 +22,26 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
     useEffect(() => {
         if (!isLoading) {
             if (!isAuthenticated) {
-                router.push('/auth/login');
+                // Redirect to role-specific login if requiredRole is set
+                if (requiredRole) {
+                    router.push(`/auth/${requiredRole}/login`);
+                } else {
+                    router.push('/auth/login');
+                }
                 return;
             }
 
             if (requiredRole && user?.role !== requiredRole) {
-                router.push('/');
+                // Redirect to their role-specific dashboard
+                if (user?.role === 'vendor') {
+                    router.push('/vendor/dashboard');
+                } else if (user?.role === 'student') {
+                    router.push('/student/dashboard');
+                } else if (user?.role === 'admin') {
+                    router.push('/admin/dashboard');
+                } else {
+                    router.push('/');
+                }
                 return;
             }
         }

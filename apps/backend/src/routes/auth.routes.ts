@@ -157,5 +157,35 @@ router.post(
     asyncHandler(authController.updatePassword.bind(authController))
 );
 
+/**
+ * @route   POST /api/auth/verify-email
+ * @desc    Verify email with OTP (for vendor registration)
+ * @access  Public
+ */
+router.post(
+    '/verify-email',
+    asyncHandler(authController.verifyEmail.bind(authController))
+);
+
+/**
+ * @route   POST /api/auth/resend-email-verification
+ * @desc    Resend email verification OTP
+ * @access  Public
+ */
+router.post(
+    '/resend-email-verification',
+    asyncHandler(authController.resendEmailVerification.bind(authController))
+);
+
+/**
+ * @route   POST /api/auth/verify-student-email
+ * @desc    Verify student email against university database
+ * @access  Public
+ */
+router.post(
+    '/verify-student-email',
+    asyncHandler(authController.verifyStudentEmail.bind(authController))
+);
+
 export default router;
 

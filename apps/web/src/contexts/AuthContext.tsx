@@ -14,7 +14,7 @@ interface AuthContextType {
     user: User | null;
     isAuthenticated: boolean;
     isLoading: boolean;
-    login: (email: string, password: string) => Promise<void>;
+    login: (email: string, password: string, requiredRole?: 'admin' | 'vendor' | 'student', rememberMe?: boolean) => Promise<void>;
     register: (email: string, password: string, name: string, role: 'student' | 'vendor') => Promise<void>;
     logout: () => Promise<void>;
     refreshUser: () => Promise<void>;
@@ -38,6 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     // Try to fetch current user from API
                     try {
                         const response = await apiClient.get('/auth/me');
+                        // Response format: { id, email, role, verificationStatus, profile }
                         setUser(response.data.data);
                     } catch {
                         // If API call fails, use token data
@@ -54,12 +55,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     /**
      * Login
      */
-    const login = async (email: string, password: string) => {
-        const response = await apiClient.post('/auth/login', { email, password });
+    const login = async (email: string, password: string, requiredRole?: 'admin' | 'vendor' | 'student', rememberMe: boolean = false) => {
+        const requestBody: { email: string; password: string; role?: string; rememberMe?: boolean } = { email, password, rememberMe };
+        if (requiredRole) {
+            requestBody.role = requiredRole;
+        }
+        const response = await apiClient.post('/auth/login', requestBody);
         const { tokens, user: userData } = response.data.data;
 
         storeTokens(tokens);
         setUser(userData);
+
+        // Redirect based on role after login
+        if (typeof window !== 'undefined') {
+            if (userData.role === 'vendor') {
+                window.location.href = '/vendor/dashboard';
+            } else if (userData.role === 'student') {
+                window.location.href = '/student/dashboard';
+            } else if (userData.role === 'admin') {
+                window.location.href = '/admin/dashboard';
+            } else {
+                window.location.href = '/';
+            }
+        }
     };
 
     /**
@@ -76,6 +94,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         storeTokens(tokens);
         setUser(userData);
+
+        // Redirect based on role after registration
+        // Vendors need email verification, so redirect to verification page
+        if (typeof window !== 'undefined') {
+            if (userData.role === 'vendor' && response.data.data.requiresEmailVerification) {
+                // Don't redirect - let the registration flow handle it
+                return;
+            } else if (userData.role === 'vendor') {
+                window.location.href = '/vendor/dashboard';
+            } else if (userData.role === 'student') {
+                window.location.href = '/student/dashboard';
+            } else {
+                window.location.href = '/';
+            }
+        }
     };
 
     /**
@@ -89,6 +122,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } finally {
             clearTokens();
             setUser(null);
+
+            // Redirect to appropriate login page based on current route
+            if (typeof window !== 'undefined') {
+                const currentPath = window.location.pathname;
+                if (currentPath.startsWith('/admin')) {
+                    window.location.href = '/auth/admin/login';
+                } else if (currentPath.startsWith('/vendor')) {
+                    window.location.href = '/auth/vendor/login';
+                } else if (currentPath.startsWith('/student')) {
+                    window.location.href = '/auth/student/login';
+                } else {
+                    window.location.href = '/';
+                }
+            }
         }
     };
 
