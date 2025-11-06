@@ -1,5 +1,5 @@
 /**
- * Reset Password Page (OTP Verification)
+ * Reset Password Page (Multi-Step)
  */
 
 'use client';
@@ -14,9 +14,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-const resetPasswordSchema = z.object({
+// Schema for the first step: OTP and Email verification
+const verifyOTPSchema = z.object({
     email: z.string().email('Invalid email address'),
     otp: z.string().length(6, 'OTP must be 6 digits'),
+});
+
+// Schema for the second step: Password reset
+const resetPasswordSchema = z.object({
     password: z.string().min(8, 'Password must be at least 8 characters'),
     confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -24,6 +29,8 @@ const resetPasswordSchema = z.object({
     path: ['confirmPassword'],
 });
 
+// Zod-inferred types
+type VerifyOTPFormData = z.infer<typeof verifyOTPSchema>;
 type ResetPasswordFormData = z.infer<typeof resetPasswordSchema>;
 
 export default function ResetPasswordPage() {
@@ -31,18 +38,27 @@ export default function ResetPasswordPage() {
     const [step, setStep] = useState<'verify' | 'reset'>('verify');
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    
+    // State to hold verified email and OTP for the final step
     const [email, setEmail] = useState('');
+    const [otp, setOtp] = useState('');
 
-    const {
-        register,
-        handleSubmit,
-        formState: { errors },
-        watch,
-    } = useForm<ResetPasswordFormData>({
+    // Form hook for the OTP verification step
+    const verifyForm = useForm<VerifyOTPFormData>({
+        resolver: zodResolver(verifyOTPSchema),
+    });
+
+    // Form hook for the password reset step
+    const resetForm = useForm<ResetPasswordFormData>({
         resolver: zodResolver(resetPasswordSchema),
     });
 
-    const verifyOTP = async (data: { email: string; otp: string }) => {
+    // Destructure form methods for clarity
+    const { handleSubmit: handleVerifySubmit, formState: { errors: verifyErrors } } = verifyForm;
+    const { handleSubmit: handleResetSubmit, formState: { errors: resetErrors } } = resetForm;
+
+    // Handler for the first step (verifying OTP)
+    const verifyOTP = async (data: VerifyOTPFormData) => {
         try {
             setIsLoading(true);
             setError(null);
@@ -50,22 +66,25 @@ export default function ResetPasswordPage() {
                 email: data.email,
                 otp: data.otp,
             });
+            // On success, store email and OTP in state and move to the next step
             setEmail(data.email);
+            setOtp(data.otp);
             setStep('reset');
         } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
-            setError(err.response?.data?.error?.message || 'Invalid OTP. Please try again.');
+            setError(err.response?.data?.error?.message || 'Invalid OTP or email. Please try again.');
         } finally {
             setIsLoading(false);
         }
     };
 
+    // Handler for the second step (resetting password)
     const resetPassword = async (data: ResetPasswordFormData) => {
         try {
             setIsLoading(true);
             setError(null);
             await apiClient.post('/auth/reset-password', {
-                email: data.email,
-                otp: data.otp,
+                email: email, // Use email from state
+                otp: otp,     // Use OTP from state
                 password: data.password,
             });
             router.push('/auth/login?reset=success');
@@ -76,6 +95,7 @@ export default function ResetPasswordPage() {
         }
     };
 
+    // Render the OTP verification form
     if (step === 'verify') {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
@@ -83,7 +103,7 @@ export default function ResetPasswordPage() {
                     <div className="bg-white rounded-lg shadow-md p-8">
                         <h1 className="text-2xl font-bold text-center mb-6">Verify OTP</h1>
                         <p className="text-center text-gray-600 mb-6">
-                            Enter the 6-digit OTP sent to your email.
+                            Enter your email and the 6-digit OTP we sent you.
                         </p>
 
                         {error && (
@@ -92,18 +112,18 @@ export default function ResetPasswordPage() {
                             </div>
                         )}
 
-                        <form onSubmit={handleSubmit(verifyOTP)} className="space-y-4">
+                        <form onSubmit={handleVerifySubmit(verifyOTP)} className="space-y-4">
                             <div>
                                 <Label htmlFor="email">Email</Label>
                                 <Input
                                     id="email"
                                     type="email"
                                     placeholder="you@example.com"
-                                    {...register('email')}
-                                    aria-invalid={errors.email ? 'true' : 'false'}
+                                    {...verifyForm.register('email')}
+                                    aria-invalid={verifyErrors.email ? 'true' : 'false'}
                                 />
-                                {errors.email && (
-                                    <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+                                {verifyErrors.email && (
+                                    <p className="mt-1 text-sm text-red-600">{verifyErrors.email.message}</p>
                                 )}
                             </div>
 
@@ -114,11 +134,11 @@ export default function ResetPasswordPage() {
                                     type="text"
                                     placeholder="000000"
                                     maxLength={6}
-                                    {...register('otp')}
-                                    aria-invalid={errors.otp ? 'true' : 'false'}
+                                    {...verifyForm.register('otp')}
+                                    aria-invalid={verifyErrors.otp ? 'true' : 'false'}
                                 />
-                                {errors.otp && (
-                                    <p className="mt-1 text-sm text-red-600">{errors.otp.message}</p>
+                                {verifyErrors.otp && (
+                                    <p className="mt-1 text-sm text-red-600">{verifyErrors.otp.message}</p>
                                 )}
                             </div>
 
@@ -132,6 +152,7 @@ export default function ResetPasswordPage() {
         );
     }
 
+    // Render the password reset form
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
             <div className="w-full max-w-md">
@@ -144,21 +165,18 @@ export default function ResetPasswordPage() {
                         </div>
                     )}
 
-                    <form onSubmit={handleSubmit(resetPassword)} className="space-y-4">
-                        <input type="hidden" {...register('email')} value={email} />
-                        <input type="hidden" {...register('otp')} value={watch('otp')} />
-
+                    <form onSubmit={handleResetSubmit(resetPassword)} className="space-y-4">
                         <div>
                             <Label htmlFor="password">New Password</Label>
                             <Input
                                 id="password"
                                 type="password"
                                 placeholder="At least 8 characters"
-                                {...register('password')}
-                                aria-invalid={errors.password ? 'true' : 'false'}
+                                {...resetForm.register('password')}
+                                aria-invalid={resetErrors.password ? 'true' : 'false'}
                             />
-                            {errors.password && (
-                                <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+                            {resetErrors.password && (
+                                <p className="mt-1 text-sm text-red-600">{resetErrors.password.message}</p>
                             )}
                         </div>
 
@@ -168,11 +186,11 @@ export default function ResetPasswordPage() {
                                 id="confirmPassword"
                                 type="password"
                                 placeholder="Re-enter your password"
-                                {...register('confirmPassword')}
-                                aria-invalid={errors.confirmPassword ? 'true' : 'false'}
+                                {...resetForm.register('confirmPassword')}
+                                aria-invalid={resetErrors.confirmPassword ? 'true' : 'false'}
                             />
-                            {errors.confirmPassword && (
-                                <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>
+                            {resetErrors.confirmPassword && (
+                                <p className="mt-1 text-sm text-red-600">{resetErrors.confirmPassword.message}</p>
                             )}
                         </div>
 
@@ -185,4 +203,3 @@ export default function ResetPasswordPage() {
         </div>
     );
 }
-
