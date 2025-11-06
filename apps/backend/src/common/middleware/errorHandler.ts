@@ -9,6 +9,7 @@ import type { Request, Response, NextFunction } from 'express';
 import { AppError } from '../errors/AppError.js';
 import { config } from '../../config/env.js';
 import { ZodError } from 'zod';
+import { fromZodError, ValidationError } from 'zod-validation-error';
 
 /**
  * Error response interface
@@ -36,19 +37,15 @@ export const errorHandler = (
 ): void => {
     // Handle Zod validation errors
     if (err instanceof ZodError) {
-        const details: Record<string, string> = {};
-        err.errors.forEach((error) => {
-            const path = error.path.join('.');
-            details[path] = error.message;
-        });
+        const validationError: ValidationError = fromZodError(err);
 
         const response: ErrorResponse = {
             success: false,
             error: {
-                message: 'Validation failed',
+                message: validationError.message,
                 code: 'VALIDATION_ERROR',
                 statusCode: 422,
-                details,
+                details: validationError.details,
             },
         };
 

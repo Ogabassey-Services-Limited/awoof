@@ -14,7 +14,8 @@
     "lint": "eslint src --ext .ts",
     "type-check": "tsc --noEmit",
     "db:migrate": "tsx src/database/migrations/run.ts",
-    "db:rollback": "echo 'Rollback not implemented yet'"
+    "db:rollback": "echo 'Rollback not implemented yet'",
+    "db:clear": "docker-compose -f ../packages/docker-compose.dev.yml exec -T db psql -U root -d awoofDB < src/database/migrations/clear_test_data.sql || echo 'Note: Run this from project root or ensure Docker is running'"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
@@ -31,8 +32,10 @@
   },
   "dependencies": {
     "@sentry/node": "^8.34.0",
+    "@types/multer": "^2.0.0",
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.8",
+    "@types/uuid": "^10.0.0",
     "axios": "^1.13.1",
     "bcrypt": "^5.1.1",
     "bullmq": "^5.25.1",
@@ -42,11 +45,13 @@
     "express-rate-limit": "^7.4.1",
     "ioredis": "^5.4.1",
     "jsonwebtoken": "^9.0.2",
+    "multer": "^2.0.2",
     "pg": "^8.13.1",
     "sib-api-v3-sdk": "^8.5.0",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
+    "uuid": "^13.0.0",
     "zod": "^3.23.8",
-    "zod-validation-error": "^1.2.0"
+    "zod-validation-error": "^1.5.0"
   }
 }

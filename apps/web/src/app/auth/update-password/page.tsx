@@ -18,7 +18,7 @@ import { Label } from '@/components/ui/label';
 
 const updatePasswordSchema = z.object({
     oldPassword: z.string().min(1, 'Current password is required'),
-    password: z.string().min(8, 'Password must be at least 8 characters'),
+    password: z.string().min(8, 'New password must be at least 8 characters'),
     confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
@@ -37,6 +37,7 @@ export default function UpdatePasswordPage() {
     const {
         register,
         handleSubmit,
+        reset,
         formState: { errors },
     } = useForm<UpdatePasswordFormData>({
         resolver: zodResolver(updatePasswordSchema),
@@ -51,6 +52,9 @@ export default function UpdatePasswordPage() {
                 newPassword: data.password,
             });
             setSuccess(true);
+
+            // Clear form fields after successful update
+            reset({ oldPassword: '', password: '', confirmPassword: '' });
 
             // Logout user after password update (security best practice)
             setTimeout(() => {

@@ -32,6 +32,10 @@ apiClient.interceptors.request.use(
                 config.headers.Authorization = `Bearer ${token}`;
             }
         }
+        // Don't override Content-Type for FormData (multipart/form-data)
+        if (config.data instanceof FormData && config.headers) {
+            delete config.headers['Content-Type'];
+        }
         return config;
     },
     (error) => {

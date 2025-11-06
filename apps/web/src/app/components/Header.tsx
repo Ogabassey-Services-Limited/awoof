@@ -31,7 +31,7 @@ function Header() {
                 <div className="flex items-center gap-4">
                     {isAuthenticated ? (
                         <>
-                            <Link href="/student/dashboard">
+                            <Link href={user?.role === 'vendor' ? '/vendor/dashboard' : '/student/dashboard'}>
                                 <Button size={"lg"} variant="outline" className='rounded-4xl px-7'>
                                     <span className='text-[#1D4ED8] text-[20px] font-bold'>Dashboard</span>
                                 </Button>
@@ -47,13 +47,13 @@ function Header() {
                         </>
                     ) : (
                         <>
-                            <Link href="/auth/login">
+                            <Link href="/auth/student/login">
                                 <Button size={"lg"} variant="outline" className='rounded-4xl px-7'>
                                     <span className='text-white text-[20px] font-bold'>Login</span>
                                 </Button>
                             </Link>
                             <Button size={"lg"} className='rounded-4xl bg-white hover:bg-[#FFFFFF77] px-7'>
-                                <Link href="/" className='text-[#1D4ED8] text-[20px] font-bold '>Partner with us</Link>
+                                <Link href="/auth/vendor/register" className='text-[#1D4ED8] text-[20px] font-bold '>Partner with us</Link>
                             </Button>
                         </>
                     )}

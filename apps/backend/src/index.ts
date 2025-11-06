@@ -62,6 +62,9 @@ class App {
       customCss: '.swagger-ui .topbar { display: none }',
       customSiteTitle: 'Awoof API Documentation',
     }));
+
+    // Static file serving for uploads
+    this.app.use('/uploads', express.static('uploads'));
   }
 
   /**
@@ -79,6 +82,7 @@ class App {
           students: '/api/students',
           universities: '/api/universities',
           verification: '/api/verification',
+          vendors: '/api/vendors',
         },
       });
     });
@@ -120,6 +124,16 @@ class App {
       console.log(' Verification routes registered successfully');
     } catch (error) {
       console.error(' Failed to register verification routes:', error);
+      throw error;
+    }
+
+    // Vendor routes
+    try {
+      const vendorRoutes = await import('./routes/vendors.routes.js');
+      this.app.use('/api/vendors', vendorRoutes.default);
+      console.log(' Vendor routes registered successfully');
+    } catch (error) {
+      console.error(' Failed to register vendor routes:', error);
       throw error;
     }
   }

@@ -6,10 +6,13 @@
  */
 
 /**
- * Generate a 6-digit OTP
+ * Generate an OTP
+ * @param length - Length of OTP (default: 6)
  */
-export function generateOTP(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+export function generateOTP(length: number = 6): string {
+    const min = Math.pow(10, length - 1);
+    const max = Math.pow(10, length) - 1;
+    return Math.floor(min + Math.random() * (max - min + 1)).toString();
 }
 
 /**
