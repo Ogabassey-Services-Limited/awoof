@@ -2,7 +2,7 @@
  * WhatsApp OTP Service
  * 
  * Handles WhatsApp OTP generation and sending
- * Follows Single Responsibility Principle - only handles WhatsApp OTP
+ * Follows the Single Responsibility Principle - only handles WhatsApp OTP
  */
 
 import { redis } from '../../config/redis.js';
@@ -32,6 +32,10 @@ export async function storeOTPInRedis(phoneNumber: string, otp: string): Promise
     if (redis.isConnected()) {
         const key = `whatsapp_otp:${phoneNumber}`;
         await redisClient.setex(key, WHATSAPP_OTP_EXPIRY_MINUTES * 60, otp);
+    } else {
+        // It's good practice to handle the 'else' case, even if just for logging.
+        // This helps in debugging scenarios where Redis might be down.
+        console.error('Redis is not connected. OTP for was not stored.');
     }
 }
 
@@ -42,13 +46,20 @@ export async function verifyOTPFromRedis(phoneNumber: string, otp: string): Prom
     const redisClient = redis.getClient();
     if (redis.isConnected()) {
         const key = `whatsapp_otp:${phoneNumber}`;
-        const storedOTP = await redisClient.get(key);
-
-        if (storedOTP === otp) {
-            // Delete OTP after successful verification
-            await redisClient.del(key);
-            return true;
+        try {
+            const storedOTP = await redisClient.get(key);
+    
+            if (storedOTP && storedOTP === otp) {
+                // Use a pipeline to ensure atomicity of GET and DEL operations if needed,
+                // but for this use case, deleting after check is usually fine.
+                // Deleting the OTP prevents it from being used again (replay attack).
+                await redisClient.del(key);
+                return true;
+            }
+        } catch (error) {
+            console.error('Error verifying OTP from Redis:', error);
         }
+        // For security, it's better to return false on any failure or mismatch.
     }
     return false;
 }
@@ -62,14 +73,14 @@ export async function sendWhatsAppOTP(
     otp: string
 ): Promise<{ success: boolean; error?: string; messageId?: string }> {
     // Generate OTP if not provided
-    const otpCode = otp || generateOTP();
+    const otpCode = otp || generateOTP(6); // Explicitly define OTP length
 
     // Store in Redis
     await storeOTPInRedis(phoneNumber, otpCode);
 
     // Check if WhatsApp API is configured
     if (!config.whatsapp.apiKey || !config.whatsapp.apiUrl) {
-        console.warn('WhatsApp API not configured, OTP stored but not sent');
+        console.warn(`WhatsApp API not configured. OTP for ${phoneNumber} is ${otpCode} (stored for testing).`);
         // Still return success since OTP is stored in Redis and can be retrieved
         return {
             success: true,
@@ -79,7 +90,7 @@ export async function sendWhatsAppOTP(
 
     try {
         // Format phone number (ensure it starts with country code)
-        const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber}`;
+        const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+${phoneNumber.replace(/[^0-9]/g, '')}`;
 
         // Send via WhatsApp API
         const response = await axios.post(
@@ -109,4 +120,3 @@ export async function sendWhatsAppOTP(
         };
     }
 }
-

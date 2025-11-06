@@ -18,7 +18,7 @@ import { Label } from '@/components/ui/label';
 
 const updatePasswordSchema = z.object({
     oldPassword: z.string().min(1, 'Current password is required'),
-    password: z.string().min(8, 'Password must be at least 8 characters'),
+    password: z.string().min(8, 'New password must be at least 8 characters'),
     confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
@@ -37,6 +37,7 @@ export default function UpdatePasswordPage() {
     const {
         register,
         handleSubmit,
+        reset,
         formState: { errors },
     } = useForm<UpdatePasswordFormData>({
         resolver: zodResolver(updatePasswordSchema),
@@ -59,6 +60,7 @@ export default function UpdatePasswordPage() {
             }, 2000);
         } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
             setError(err.response?.data?.error?.message || 'Failed to update password. Please try again.');
+            reset({ oldPassword: '', password: '', confirmPassword: '' }); // Clear fields on error for security
         } finally {
             setIsLoading(false);
         }
@@ -91,6 +93,7 @@ export default function UpdatePasswordPage() {
                                     type="password"
                                     placeholder="Enter your current password"
                                     {...register('oldPassword')}
+                                    autoComplete="current-password"
                                     aria-invalid={errors.oldPassword ? 'true' : 'false'}
                                 />
                                 {errors.oldPassword && (
@@ -105,6 +108,7 @@ export default function UpdatePasswordPage() {
                                     type="password"
                                     placeholder="At least 8 characters"
                                     {...register('password')}
+                                    autoComplete="new-password"
                                     aria-invalid={errors.password ? 'true' : 'false'}
                                 />
                                 {errors.password && (
@@ -119,6 +123,7 @@ export default function UpdatePasswordPage() {
                                     type="password"
                                     placeholder="Re-enter your new password"
                                     {...register('confirmPassword')}
+                                    autoComplete="new-password"
                                     aria-invalid={errors.confirmPassword ? 'true' : 'false'}
                                 />
                                 {errors.confirmPassword && (
@@ -136,4 +141,3 @@ export default function UpdatePasswordPage() {
         </ProtectedRoute>
     );
 }
-
