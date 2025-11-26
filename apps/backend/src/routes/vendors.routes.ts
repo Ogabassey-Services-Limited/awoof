@@ -9,11 +9,13 @@ import { asyncHandler } from '../common/middleware/errorHandler.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { VendorController } from '../controllers/vendor.controller.js';
 import { ProductController } from '../controllers/product.controller.js';
+import { OrderController } from '../controllers/order.controller.js';
 import { upload } from '../config/upload.js';
 
 const router = Router();
 const vendorController = new VendorController();
 const productController = new ProductController();
+const orderController = new OrderController();
 
 /**
  * @route   POST /api/vendors/upload
@@ -135,6 +137,39 @@ router.post(
     '/products/sync',
     authenticate,
     asyncHandler(productController.syncProducts.bind(productController))
+);
+
+/**
+ * @route   GET /api/vendors/orders
+ * @desc    Get all orders for the vendor
+ * @access  Private (Vendor)
+ */
+router.get(
+    '/orders',
+    authenticate,
+    asyncHandler(orderController.getOrders.bind(orderController))
+);
+
+/**
+ * @route   GET /api/vendors/orders/:id
+ * @desc    Get a single order by ID
+ * @access  Private (Vendor)
+ */
+router.get(
+    '/orders/:id',
+    authenticate,
+    asyncHandler(orderController.getOrder.bind(orderController))
+);
+
+/**
+ * @route   PUT /api/vendors/orders/:id/status
+ * @desc    Update order status
+ * @access  Private (Vendor)
+ */
+router.put(
+    '/orders/:id/status',
+    authenticate,
+    asyncHandler(orderController.updateOrderStatus.bind(orderController))
 );
 
 export default router;
