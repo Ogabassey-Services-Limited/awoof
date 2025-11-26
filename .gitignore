@@ -41,3 +41,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# Uploads (user-uploaded files)
+apps/backend/uploads/
+apps/web/uploads/
+
