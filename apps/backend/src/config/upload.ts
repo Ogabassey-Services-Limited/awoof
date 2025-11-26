@@ -53,6 +53,7 @@ export const upload = multer({
 });
 
 // Helper to get file URL
+// Returns relative path - frontend should construct full URL using NEXT_PUBLIC_API_URL
 export function getFileUrl(filename: string): string {
     return `/uploads/vendors/${filename}`;
 }

@@ -8,10 +8,12 @@ import { Router } from 'express';
 import { asyncHandler } from '../common/middleware/errorHandler.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { VendorController } from '../controllers/vendor.controller.js';
+import { ProductController } from '../controllers/product.controller.js';
 import { upload } from '../config/upload.js';
 
 const router = Router();
 const vendorController = new VendorController();
+const productController = new ProductController();
 
 /**
  * @route   POST /api/vendors/upload
@@ -61,6 +63,78 @@ router.put(
     '/profile',
     authenticate,
     asyncHandler(vendorController.updateProfile.bind(vendorController))
+);
+
+/**
+ * Product Management Routes
+ */
+
+/**
+ * @route   GET /api/vendors/products
+ * @desc    Get all products for the vendor
+ * @access  Private (Vendor)
+ */
+router.get(
+    '/products',
+    authenticate,
+    asyncHandler(productController.getProducts.bind(productController))
+);
+
+/**
+ * @route   GET /api/vendors/products/:id
+ * @desc    Get a single product by ID
+ * @access  Private (Vendor)
+ */
+router.get(
+    '/products/:id',
+    authenticate,
+    asyncHandler(productController.getProduct.bind(productController))
+);
+
+/**
+ * @route   POST /api/vendors/products
+ * @desc    Create a new product
+ * @access  Private (Vendor)
+ */
+router.post(
+    '/products',
+    authenticate,
+    upload.single('productImage'),
+    asyncHandler(productController.createProduct.bind(productController))
+);
+
+/**
+ * @route   PUT /api/vendors/products/:id
+ * @desc    Update a product
+ * @access  Private (Vendor)
+ */
+router.put(
+    '/products/:id',
+    authenticate,
+    upload.single('productImage'),
+    asyncHandler(productController.updateProduct.bind(productController))
+);
+
+/**
+ * @route   DELETE /api/vendors/products/:id
+ * @desc    Delete a product (soft delete)
+ * @access  Private (Vendor)
+ */
+router.delete(
+    '/products/:id',
+    authenticate,
+    asyncHandler(productController.deleteProduct.bind(productController))
+);
+
+/**
+ * @route   POST /api/vendors/products/sync
+ * @desc    Trigger product sync from vendor API
+ * @access  Private (Vendor)
+ */
+router.post(
+    '/products/sync',
+    authenticate,
+    asyncHandler(productController.syncProducts.bind(productController))
 );
 
 export default router;

@@ -11,6 +11,23 @@ import type { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001';
 
 /**
+ * Construct full URL for uploaded images
+ * @param imagePath - Relative path from backend (e.g., "/uploads/vendors/filename.png")
+ * @returns Full URL to the image
+ */
+export function getImageUrl(imagePath: string | null | undefined): string | null {
+    if (!imagePath) return null;
+
+    // If already a full URL, return as is
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+        return imagePath;
+    }
+
+    // Construct full URL using API base URL
+    return `${API_URL}${imagePath}`;
+}
+
+/**
  * Create axios instance
  */
 const apiClient: AxiosInstance = axios.create({

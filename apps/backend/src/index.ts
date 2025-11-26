@@ -131,9 +131,19 @@ class App {
     try {
       const vendorRoutes = await import('./routes/vendors.routes.js');
       this.app.use('/api/vendors', vendorRoutes.default);
-      console.log(' Vendor routes registered successfully');
+      console.log('✅ Vendor routes registered successfully');
     } catch (error) {
-      console.error(' Failed to register vendor routes:', error);
+      console.error('❌ Failed to register vendor routes:', error);
+      throw error;
+    }
+
+    // Products routes
+    try {
+      const productsRoutes = await import('./routes/products.routes.js');
+      this.app.use('/api/products', productsRoutes.default);
+      console.log('✅ Products routes registered successfully');
+    } catch (error) {
+      console.error('❌ Failed to register products routes:', error);
       throw error;
     }
   }
