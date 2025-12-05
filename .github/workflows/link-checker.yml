@@ -1,0 +1,46 @@
+name: Link Checker
+
+on:
+  repository_dispatch:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 1' # Weekly on Monday
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  link-checker:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore lychee cache
+        uses: actions/cache@v4
+        with:
+          path: .lycheecache
+          key: cache-lychee-${{ github.sha }}
+          restore-keys: cache-lychee-
+
+      - name: Link Checker
+        uses: lycheeverse/lychee-action@v2.0.2
+        with:
+          args: >-
+            --verbose
+            --no-progress
+            './**/*.md' './**/*.html' './**/*.tsx' './**/*.ts'
+            --exclude-mail
+            --exclude 'localhost|127\.0\.0\.1'
+            --exclude 'github\.com'
+            --exclude 'via\.placeholder\.com|example\.com|yourcdn\.com|yoursite\.com'
+            --exclude '\$\{|%7B|%7D'
+            --exclude 'gsap\.com'
+            --exclude 'greensock\.com'
+            --exclude 'react\.dev'
+            --exclude 'facebook\.com'
+          fail: true
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
