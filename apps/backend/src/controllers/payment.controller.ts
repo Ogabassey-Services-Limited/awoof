@@ -15,6 +15,8 @@ import { success } from '../common/utils/response.js';
 import type { AuthRequest } from '../middleware/auth.middleware.js';
 import { z } from 'zod';
 import crypto from 'crypto';
+import { validateAndConsumeToken } from '../services/verification/verification-token.service.js';
+import { verifyPaystackPayment } from '../services/payment/paystack.service.js';
 
 /**
  * Validation schemas
@@ -533,19 +535,130 @@ export class PaymentController {
         // Validate request body
         const validated = reportTransactionSchema.parse(req.body);
 
-        // TODO: Implement verification token validation
-        // TODO: Implement payment reference validation (if Paystack, verify with Paystack API)
-        // TODO: Check for duplicate transactions
-        // TODO: Create transaction record
-        // TODO: Calculate commission
+        // Get vendor ID
+        const vendorResult = await db.query(
+            'SELECT id FROM vendors WHERE user_id = $1 AND deleted_at IS NULL',
+            [req.user?.userId]
+        );
 
-        // For now, return success (implementation will be completed when verification token system is ready)
+        if (vendorResult.rows.length === 0) {
+            throw new NotFoundError('Vendor profile not found');
+        }
+
+        const vendorId = vendorResult.rows[0].id;
+
+        // 1. Validate and consume verification token
+        const tokenData = await validateAndConsumeToken(validated.verificationToken, vendorId);
+
+        // 2. Verify product exists and belongs to vendor
+        const productResult = await db.query(
+            `SELECT id, price, student_price, vendor_id
+             FROM products
+             WHERE id = $1 AND vendor_id = $2 AND deleted_at IS NULL`,
+            [validated.productId, vendorId]
+        );
+
+        if (productResult.rows.length === 0) {
+            throw new NotFoundError('Product not found or does not belong to vendor');
+        }
+
+        const product = productResult.rows[0];
+
+        // 3. Validate payment amount matches product price (allow small variance for rounding)
+        const expectedAmount = parseFloat(product.student_price.toString());
+        const reportedAmount = validated.amount / 100; // Convert from kobo to naira
+        const variance = Math.abs(expectedAmount - reportedAmount);
+        const allowedVariance = 0.01; // Allow 1 kobo variance
+
+        if (variance > allowedVariance) {
+            throw new BadRequestError(
+                `Payment amount (${reportedAmount}) does not match product price (${expectedAmount})`
+            );
+        }
+
+        // 4. Validate payment reference (if Paystack)
+        if (validated.paymentGateway === 'paystack') {
+            const paymentVerification = await verifyPaystackPayment(validated.paymentReference);
+
+            if (!paymentVerification.verified) {
+                throw new BadRequestError(
+                    paymentVerification.error || 'Payment verification failed'
+                );
+            }
+
+            // Verify payment amount matches
+            if (paymentVerification.amount && Math.abs(paymentVerification.amount - reportedAmount) > allowedVariance) {
+                throw new BadRequestError(
+                    `Paystack payment amount (${paymentVerification.amount}) does not match reported amount (${reportedAmount})`
+                );
+            }
+        }
+
+        // 5. Check for duplicate payment reference
+        const duplicateCheck = await db.query(
+            `SELECT id FROM transactions
+             WHERE vendor_payment_reference = $1 AND vendor_id = $2`,
+            [validated.paymentReference, vendorId]
+        );
+
+        if (duplicateCheck.rows.length > 0) {
+            throw new BadRequestError('Payment reference has already been used');
+        }
+
+        // 6. Get vendor commission rate
+        const vendorInfo = await db.query(
+            'SELECT commission_rate FROM vendors WHERE id = $1',
+            [vendorId]
+        );
+
+        const commissionRate = parseFloat(vendorInfo.rows[0]?.commission_rate || '0');
+        const commission = (reportedAmount * commissionRate) / 100;
+        const earnings = reportedAmount - commission;
+
+        // 7. Create transaction record
+        const transactionResult = await db.query(
+            `INSERT INTO transactions (
+                student_id, product_id, vendor_id, amount, commission,
+                status, verification_token, payment_source, vendor_payment_reference, verified_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
+            RETURNING id, status, created_at`,
+            [
+                tokenData.studentId,
+                validated.productId,
+                vendorId,
+                reportedAmount,
+                commission,
+                'completed',
+                validated.verificationToken,
+                validated.paymentGateway === 'paystack' ? 'vendor_paystack' : 'vendor_other',
+                validated.paymentReference,
+            ]
+        );
+
+        const transaction = transactionResult.rows[0];
+
+        // 8. Update savings stats for student
+        await db.query(
+            `INSERT INTO savings_stats (student_id, total_savings, total_purchases, last_updated)
+             VALUES ($1, $2, 1, CURRENT_TIMESTAMP)
+             ON CONFLICT (student_id)
+             DO UPDATE SET
+                 total_savings = savings_stats.total_savings + $2,
+                 total_purchases = savings_stats.total_purchases + 1,
+                 last_updated = CURRENT_TIMESTAMP`,
+            [tokenData.studentId, parseFloat(product.price.toString()) - reportedAmount]
+        );
+
         success(res, {
             message: 'Transaction reported successfully',
             data: {
-                transactionId: 'pending',
-                status: 'pending',
-                note: 'Transaction reporting will be fully implemented with verification token system',
+                transactionId: transaction.id,
+                status: transaction.status,
+                amount: reportedAmount,
+                commission,
+                earnings,
+                createdAt: transaction.created_at,
             },
         }, 201);
     }

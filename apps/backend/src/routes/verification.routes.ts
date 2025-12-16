@@ -7,6 +7,7 @@
 import { Router } from 'express';
 import { asyncHandler } from '../common/middleware/errorHandler.js';
 import { VerificationController } from '../controllers/verification.controller.js';
+import { authenticate } from '../middleware/auth.middleware.js';
 
 const router = Router();
 const verificationController = new VerificationController();
@@ -89,6 +90,17 @@ router.post(
 router.get(
     '/status/:studentId',
     asyncHandler(verificationController.getVerificationStatus.bind(verificationController))
+);
+
+/**
+ * @route   POST /api/verification/widget/token
+ * @desc    Generate verification token for widget (for vendor website integration)
+ * @access  Private (Student)
+ */
+router.post(
+    '/widget/token',
+    authenticate,
+    asyncHandler(verificationController.generateWidgetToken.bind(verificationController))
 );
 
 export default router;
