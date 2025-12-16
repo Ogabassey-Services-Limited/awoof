@@ -1,0 +1,553 @@
+/**
+ * Payment Controller
+ * 
+ * Handles payment settings and history for vendors
+ */
+
+import type { Response } from 'express';
+import { db } from '../config/database.js';
+import {
+    BadRequestError,
+    NotFoundError,
+    UnauthorizedError,
+} from '../common/errors/AppError.js';
+import { success } from '../common/utils/response.js';
+import type { AuthRequest } from '../middleware/auth.middleware.js';
+import { z } from 'zod';
+import crypto from 'crypto';
+
+/**
+ * Validation schemas
+ */
+const updatePayoutSettingsSchema = z.object({
+    bankName: z.string().min(1, 'Bank name is required').optional(),
+    accountNumber: z.string().min(10, 'Account number must be at least 10 digits').optional(),
+    accountName: z.string().min(1, 'Account name is required').optional(),
+    bankCode: z.string().optional(),
+});
+
+const updatePaymentMethodSchema = z.object({
+    paymentMethod: z.enum(['awoof', 'vendor_website'], {
+        errorMap: () => ({ message: 'Payment method must be either "awoof" or "vendor_website"' }),
+    }),
+});
+
+const updatePaystackSubaccountSchema = z.object({
+    paystackSubaccountCode: z.string().min(1, 'Paystack subaccount code is required'),
+});
+
+const reportTransactionSchema = z.object({
+    verificationToken: z.string().min(1, 'Verification token is required'),
+    paymentReference: z.string().min(1, 'Payment reference is required'),
+    amount: z.coerce.number().positive('Amount must be positive'),
+    productId: z.string().uuid('Invalid product ID'),
+    paymentGateway: z.string().min(1, 'Payment gateway is required'),
+});
+
+/**
+ * Payment Controller
+ */
+export class PaymentController {
+    /**
+     * Get payment settings and summary
+     */
+    public async getPaymentSettings(req: AuthRequest, res: Response): Promise<void> {
+        if (!req.user || req.user.role !== 'vendor') {
+            throw new UnauthorizedError('Only vendors can view payment settings');
+        }
+
+        // Get vendor ID
+        const vendorResult = await db.query(
+            `SELECT id, commission_rate, paystack_subaccount_code,
+                    COALESCE(payment_method, 'awoof') as payment_method
+             FROM vendors 
+             WHERE user_id = $1 AND deleted_at IS NULL`,
+            [req.user.userId]
+        );
+
+        if (vendorResult.rows.length === 0) {
+            throw new NotFoundError('Vendor profile not found');
+        }
+
+        const vendor = vendorResult.rows[0];
+        const vendorId = vendor.id;
+
+        // Get payment statistics
+        const statsResult = await db.query(
+            `SELECT 
+                COUNT(*) as total_orders,
+                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_orders,
+                COALESCE(SUM(CASE WHEN status = 'completed' THEN amount ELSE 0 END), 0) as total_revenue,
+                COALESCE(SUM(CASE WHEN status = 'completed' THEN commission ELSE 0 END), 0) as total_commission,
+                COALESCE(SUM(CASE WHEN status = 'completed' THEN (amount - commission) ELSE 0 END), 0) as total_earnings
+             FROM transactions
+             WHERE vendor_id = $1`,
+            [vendorId]
+        );
+
+        const stats = statsResult.rows[0];
+
+        // Get payout settings (if stored separately, otherwise use vendor table)
+        // For now, we'll return basic info. Payout settings can be extended later
+        const payoutSettings = {
+            bankName: null,
+            accountNumber: null,
+            accountName: null,
+            bankCode: null,
+        };
+
+        success(res, {
+            message: 'Payment settings retrieved successfully',
+            data: {
+                settings: {
+                    commissionRate: parseFloat(vendor.commission_rate || '0'),
+                    paystackSubaccountCode: vendor.paystack_subaccount_code,
+                    paymentMethod: vendor.payment_method as 'awoof' | 'vendor_website' | null,
+                    payoutSettings,
+                },
+                statistics: {
+                    totalOrders: parseInt(stats.total_orders || '0'),
+                    completedOrders: parseInt(stats.completed_orders || '0'),
+                    totalRevenue: parseFloat(stats.total_revenue || '0'),
+                    totalCommission: parseFloat(stats.total_commission || '0'),
+                    totalEarnings: parseFloat(stats.total_earnings || '0'),
+                },
+            },
+        });
+    }
+
+    /**
+     * Update payout settings
+     */
+    public async updatePayoutSettings(req: AuthRequest, res: Response): Promise<void> {
+        if (!req.user || req.user.role !== 'vendor') {
+            throw new UnauthorizedError('Only vendors can update payment settings');
+        }
+
+        // Get vendor ID
+        const vendorResult = await db.query(
+            'SELECT id FROM vendors WHERE user_id = $1 AND deleted_at IS NULL',
+            [req.user.userId]
+        );
+
+        if (vendorResult.rows.length === 0) {
+            throw new NotFoundError('Vendor profile not found');
+        }
+
+        const vendorId = vendorResult.rows[0].id;
+
+        // Validate request body
+        const validated = updatePayoutSettingsSchema.parse(req.body);
+
+        // TODO: Store payout settings in a separate table or extend vendors table
+        // For now, we'll just return success
+        // In production, you'd want to:
+        // 1. Validate bank account with Paystack
+        // 2. Store securely in database
+        // 3. Handle bank account verification
+
+        success(res, {
+            message: 'Payout settings updated successfully',
+            data: {
+                payoutSettings: validated,
+            },
+        });
+    }
+
+    /**
+     * Get payment history
+     */
+    public async getPaymentHistory(req: AuthRequest, res: Response): Promise<void> {
+        if (!req.user || req.user.role !== 'vendor') {
+            throw new UnauthorizedError('Only vendors can view payment history');
+        }
+
+        // Get vendor ID
+        const vendorResult = await db.query(
+            'SELECT id FROM vendors WHERE user_id = $1 AND deleted_at IS NULL',
+            [req.user.userId]
+        );
+
+        if (vendorResult.rows.length === 0) {
+            throw new NotFoundError('Vendor profile not found');
+        }
+
+        const vendorId = vendorResult.rows[0].id;
+
+        // Get query parameters
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 20;
+        const offset = (page - 1) * limit;
+        const status = req.query.status as string | undefined;
+
+        // Build query
+        let query = `
+            SELECT 
+                t.id,
+                t.amount,
+                t.commission,
+                t.status,
+                t.paystack_reference,
+                t.created_at,
+                p.name as product_name
+            FROM transactions t
+            JOIN products p ON t.product_id = p.id
+            WHERE t.vendor_id = $1
+        `;
+        const values: (string | number)[] = [vendorId];
+        let paramCount = 2;
+
+        if (status) {
+            query += ` AND t.status = $${paramCount}`;
+            values.push(status);
+            paramCount++;
+        }
+
+        query += ` ORDER BY t.created_at DESC LIMIT $${paramCount} OFFSET $${paramCount + 1}`;
+        values.push(limit, offset);
+
+        const result = await db.query(query, values);
+
+        // Get total count
+        let countQuery = `
+            SELECT COUNT(*) as total
+            FROM transactions t
+            WHERE t.vendor_id = $1
+        `;
+        const countValues: (string | number)[] = [vendorId];
+        let countParamCount = 2;
+
+        if (status) {
+            countQuery += ` AND t.status = $${countParamCount}`;
+            countValues.push(status);
+        }
+
+        const countResult = await db.query(countQuery, countValues);
+        const total = parseInt(countResult.rows[0].total);
+        const totalPages = Math.ceil(total / limit);
+
+        // Format payments
+        const payments = result.rows.map((row) => ({
+            id: row.id,
+            amount: parseFloat(row.amount),
+            commission: parseFloat(row.commission),
+            earnings: parseFloat(row.amount) - parseFloat(row.commission),
+            status: row.status,
+            paystackReference: row.paystack_reference,
+            productName: row.product_name,
+            createdAt: row.created_at,
+        }));
+
+        success(res, {
+            message: 'Payment history retrieved successfully',
+            data: {
+                payments,
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    totalPages,
+                },
+            },
+        });
+    }
+
+    /**
+     * Get commission summary
+     */
+    public async getCommissionSummary(req: AuthRequest, res: Response): Promise<void> {
+        if (!req.user || req.user.role !== 'vendor') {
+            throw new UnauthorizedError('Only vendors can view commission summary');
+        }
+
+        // Get vendor ID
+        const vendorResult = await db.query(
+            `SELECT id, commission_rate
+             FROM vendors 
+             WHERE user_id = $1 AND deleted_at IS NULL`,
+            [req.user.userId]
+        );
+
+        if (vendorResult.rows.length === 0) {
+            throw new NotFoundError('Vendor profile not found');
+        }
+
+        const vendorId = vendorResult.rows[0].id;
+        const commissionRate = parseFloat(vendorResult.rows[0].commission_rate || '0');
+
+        // Get commission breakdown by status
+        const breakdownResult = await db.query(
+            `SELECT 
+                status,
+                COUNT(*) as count,
+                COALESCE(SUM(amount), 0) as total_amount,
+                COALESCE(SUM(commission), 0) as total_commission,
+                COALESCE(SUM(amount - commission), 0) as total_earnings
+             FROM transactions
+             WHERE vendor_id = $1
+             GROUP BY status
+             ORDER BY status`,
+            [vendorId]
+        );
+
+        // Get monthly summary (last 6 months)
+        const monthlyResult = await db.query(
+            `SELECT 
+                DATE_TRUNC('month', created_at) as month,
+                COUNT(*) as count,
+                COALESCE(SUM(CASE WHEN status = 'completed' THEN amount ELSE 0 END), 0) as revenue,
+                COALESCE(SUM(CASE WHEN status = 'completed' THEN commission ELSE 0 END), 0) as commission,
+                COALESCE(SUM(CASE WHEN status = 'completed' THEN (amount - commission) ELSE 0 END), 0) as earnings
+             FROM transactions
+             WHERE vendor_id = $1
+             AND created_at >= NOW() - INTERVAL '6 months'
+             GROUP BY DATE_TRUNC('month', created_at)
+             ORDER BY month DESC`,
+            [vendorId]
+        );
+
+        success(res, {
+            message: 'Commission summary retrieved successfully',
+            data: {
+                commissionRate,
+                breakdown: breakdownResult.rows.map((row) => ({
+                    status: row.status,
+                    count: parseInt(row.count),
+                    totalAmount: parseFloat(row.total_amount),
+                    totalCommission: parseFloat(row.total_commission),
+                    totalEarnings: parseFloat(row.total_earnings),
+                })),
+                monthlySummary: monthlyResult.rows.map((row) => ({
+                    month: row.month,
+                    count: parseInt(row.count),
+                    revenue: parseFloat(row.revenue),
+                    commission: parseFloat(row.commission),
+                    earnings: parseFloat(row.earnings),
+                })),
+            },
+        });
+    }
+
+    /**
+     * Update payment method
+     */
+    public async updatePaymentMethod(req: AuthRequest, res: Response): Promise<void> {
+        if (!req.user || req.user.role !== 'vendor') {
+            throw new UnauthorizedError('Only vendors can update payment method');
+        }
+
+        // Get vendor ID
+        const vendorResult = await db.query(
+            'SELECT id FROM vendors WHERE user_id = $1 AND deleted_at IS NULL',
+            [req.user.userId]
+        );
+
+        if (vendorResult.rows.length === 0) {
+            throw new NotFoundError('Vendor profile not found');
+        }
+
+        const vendorId = vendorResult.rows[0].id;
+
+        // Validate request body
+        const validated = updatePaymentMethodSchema.parse(req.body);
+
+        // Update payment method in vendors table
+        // Note: We'll need to add payment_method column if it doesn't exist
+        await db.query(
+            `UPDATE vendors 
+             SET payment_method = $1, updated_at = CURRENT_TIMESTAMP
+             WHERE id = $2`,
+            [validated.paymentMethod, vendorId]
+        );
+
+        success(res, {
+            message: 'Payment method updated successfully',
+            data: {
+                paymentMethod: validated.paymentMethod,
+            },
+        });
+    }
+
+    /**
+     * Update Paystack subaccount code
+     */
+    public async updatePaystackSubaccount(req: AuthRequest, res: Response): Promise<void> {
+        if (!req.user || req.user.role !== 'vendor') {
+            throw new UnauthorizedError('Only vendors can update Paystack subaccount');
+        }
+
+        // Get vendor ID
+        const vendorResult = await db.query(
+            'SELECT id FROM vendors WHERE user_id = $1 AND deleted_at IS NULL',
+            [req.user.userId]
+        );
+
+        if (vendorResult.rows.length === 0) {
+            throw new NotFoundError('Vendor profile not found');
+        }
+
+        const vendorId = vendorResult.rows[0].id;
+
+        // Validate request body
+        const validated = updatePaystackSubaccountSchema.parse(req.body);
+
+        // Update Paystack subaccount code
+        await db.query(
+            `UPDATE vendors 
+             SET paystack_subaccount_code = $1, updated_at = CURRENT_TIMESTAMP
+             WHERE id = $2`,
+            [validated.paystackSubaccountCode, vendorId]
+        );
+
+        success(res, {
+            message: 'Paystack subaccount updated successfully',
+            data: {
+                paystackSubaccountCode: validated.paystackSubaccountCode,
+            },
+        });
+    }
+
+    /**
+     * Generate API key for transaction reporting
+     */
+    public async generateApiKey(req: AuthRequest, res: Response): Promise<void> {
+        if (!req.user || req.user.role !== 'vendor') {
+            throw new UnauthorizedError('Only vendors can generate API keys');
+        }
+
+        // Get vendor ID
+        const vendorResult = await db.query(
+            'SELECT id FROM vendors WHERE user_id = $1 AND deleted_at IS NULL',
+            [req.user.userId]
+        );
+
+        if (vendorResult.rows.length === 0) {
+            throw new NotFoundError('Vendor profile not found');
+        }
+
+        const vendorId = vendorResult.rows[0].id;
+
+        // Check if vendor already has an active API key
+        const existingKeyResult = await db.query(
+            `SELECT id, key_hash FROM api_keys 
+             WHERE vendor_id = $1 AND status = 'active' 
+             ORDER BY created_at DESC LIMIT 1`,
+            [vendorId]
+        );
+
+        // Generate new API key
+        const apiKey = `awoof_${crypto.randomBytes(32).toString('hex')}`;
+        const keyHash = crypto.createHash('sha256').update(apiKey).digest('hex');
+
+        // If there's an existing key, revoke it
+        if (existingKeyResult.rows.length > 0) {
+            await db.query(
+                `UPDATE api_keys 
+                 SET status = 'revoked', updated_at = CURRENT_TIMESTAMP
+                 WHERE id = $1`,
+                [existingKeyResult.rows[0].id]
+            );
+        }
+
+        // Create new API key
+        await db.query(
+            `INSERT INTO api_keys (vendor_id, key_hash, name, rate_limit, status)
+             VALUES ($1, $2, $3, $4, 'active')`,
+            [vendorId, keyHash, 'Transaction Reporting API Key', 1000]
+        );
+
+        // Return the API key (only shown once)
+        success(res, {
+            message: 'API key generated successfully',
+            data: {
+                apiKey,
+                note: 'Store this key securely. It will not be shown again.',
+            },
+        }, 201);
+    }
+
+    /**
+     * Get vendor API key (if exists)
+     */
+    public async getApiKey(req: AuthRequest, res: Response): Promise<void> {
+        if (!req.user || req.user.role !== 'vendor') {
+            throw new UnauthorizedError('Only vendors can view API keys');
+        }
+
+        // Get vendor ID
+        const vendorResult = await db.query(
+            'SELECT id FROM vendors WHERE user_id = $1 AND deleted_at IS NULL',
+            [req.user.userId]
+        );
+
+        if (vendorResult.rows.length === 0) {
+            throw new NotFoundError('Vendor profile not found');
+        }
+
+        const vendorId = vendorResult.rows[0].id;
+
+        // Get active API key
+        const keyResult = await db.query(
+            `SELECT id, name, rate_limit, usage_count, created_at, expires_at, status
+             FROM api_keys 
+             WHERE vendor_id = $1 AND status = 'active' 
+             ORDER BY created_at DESC LIMIT 1`,
+            [vendorId]
+        );
+
+        if (keyResult.rows.length === 0) {
+            success(res, {
+                message: 'No API key found',
+                data: {
+                    hasApiKey: false,
+                },
+            });
+            return;
+        }
+
+        const key = keyResult.rows[0];
+        success(res, {
+            message: 'API key retrieved successfully',
+            data: {
+                hasApiKey: true,
+                keyInfo: {
+                    name: key.name,
+                    rateLimit: parseInt(key.rate_limit),
+                    usageCount: parseInt(key.usage_count),
+                    createdAt: key.created_at,
+                    expiresAt: key.expires_at,
+                    status: key.status,
+                },
+            },
+        });
+    }
+
+    /**
+     * Report transaction (for vendor website payments)
+     */
+    public async reportTransaction(req: AuthRequest, res: Response): Promise<void> {
+        // This endpoint can be called with API key authentication
+        // For now, we'll support both JWT and API key auth
+        // API key auth will be handled by middleware later
+
+        // Validate request body
+        const validated = reportTransactionSchema.parse(req.body);
+
+        // TODO: Implement verification token validation
+        // TODO: Implement payment reference validation (if Paystack, verify with Paystack API)
+        // TODO: Check for duplicate transactions
+        // TODO: Create transaction record
+        // TODO: Calculate commission
+
+        // For now, return success (implementation will be completed when verification token system is ready)
+        success(res, {
+            message: 'Transaction reported successfully',
+            data: {
+                transactionId: 'pending',
+                status: 'pending',
+                note: 'Transaction reporting will be fully implemented with verification token system',
+            },
+        }, 201);
+    }
+}
+

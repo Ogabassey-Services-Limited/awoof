@@ -10,12 +10,16 @@ import { authenticate } from '../middleware/auth.middleware.js';
 import { VendorController } from '../controllers/vendor.controller.js';
 import { ProductController } from '../controllers/product.controller.js';
 import { OrderController } from '../controllers/order.controller.js';
+import { PaymentController } from '../controllers/payment.controller.js';
+import { AnalyticsController } from '../controllers/analytics.controller.js';
 import { upload } from '../config/upload.js';
 
 const router = Router();
 const vendorController = new VendorController();
 const productController = new ProductController();
 const orderController = new OrderController();
+const paymentController = new PaymentController();
+const analyticsController = new AnalyticsController();
 
 /**
  * @route   POST /api/vendors/upload
@@ -170,6 +174,120 @@ router.put(
     '/orders/:id/status',
     authenticate,
     asyncHandler(orderController.updateOrderStatus.bind(orderController))
+);
+
+/**
+ * @route   GET /api/vendors/payment/settings
+ * @desc    Get payment settings and summary
+ * @access  Private (Vendor)
+ */
+router.get(
+    '/payment/settings',
+    authenticate,
+    asyncHandler(paymentController.getPaymentSettings.bind(paymentController))
+);
+
+/**
+ * @route   PUT /api/vendors/payment/payout-settings
+ * @desc    Update payout settings
+ * @access  Private (Vendor)
+ */
+router.put(
+    '/payment/payout-settings',
+    authenticate,
+    asyncHandler(paymentController.updatePayoutSettings.bind(paymentController))
+);
+
+/**
+ * @route   GET /api/vendors/payment/history
+ * @desc    Get payment history
+ * @access  Private (Vendor)
+ */
+router.get(
+    '/payment/history',
+    authenticate,
+    asyncHandler(paymentController.getPaymentHistory.bind(paymentController))
+);
+
+/**
+ * @route   GET /api/vendors/payment/commission-summary
+ * @desc    Get commission summary
+ * @access  Private (Vendor)
+ */
+router.get(
+    '/payment/commission-summary',
+    authenticate,
+    asyncHandler(paymentController.getCommissionSummary.bind(paymentController))
+);
+
+/**
+ * @route   PUT /api/vendors/payment/integration
+ * @desc    Update payment method
+ * @access  Private (Vendor)
+ */
+router.put(
+    '/payment/integration',
+    authenticate,
+    asyncHandler(paymentController.updatePaymentMethod.bind(paymentController))
+);
+
+/**
+ * @route   PUT /api/vendors/payment/paystack-subaccount
+ * @desc    Update Paystack subaccount code
+ * @access  Private (Vendor)
+ */
+router.put(
+    '/payment/paystack-subaccount',
+    authenticate,
+    asyncHandler(paymentController.updatePaystackSubaccount.bind(paymentController))
+);
+
+/**
+ * @route   POST /api/vendors/payment/api-key
+ * @desc    Generate API key for transaction reporting
+ * @access  Private (Vendor)
+ */
+router.post(
+    '/payment/api-key',
+    authenticate,
+    asyncHandler(paymentController.generateApiKey.bind(paymentController))
+);
+
+/**
+ * @route   GET /api/vendors/payment/api-key
+ * @desc    Get vendor API key info
+ * @access  Private (Vendor)
+ */
+router.get(
+    '/payment/api-key',
+    authenticate,
+    asyncHandler(paymentController.getApiKey.bind(paymentController))
+);
+
+/**
+ * @route   POST /api/vendors/transactions/report
+ * @desc    Report transaction (for vendor website payments)
+ * @access  Private (Vendor API Key or JWT)
+ */
+router.post(
+    '/transactions/report',
+    authenticate, // TODO: Add API key authentication middleware
+    asyncHandler(paymentController.reportTransaction.bind(paymentController))
+);
+
+/**
+ * Analytics Routes
+ */
+
+/**
+ * @route   GET /api/vendors/analytics
+ * @desc    Get vendor analytics
+ * @access  Private (Vendor)
+ */
+router.get(
+    '/analytics',
+    authenticate,
+    asyncHandler(analyticsController.getAnalytics.bind(analyticsController))
 );
 
 export default router;
