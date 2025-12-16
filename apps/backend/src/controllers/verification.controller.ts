@@ -25,12 +25,16 @@ import {
     getStudentVerificationStatus,
 } from '../services/verification/verification-orchestrator.service.js';
 import {
+    createVerificationToken,
+} from '../services/verification/verification-token.service.js';
+import {
     BadRequestError,
     UnauthorizedError,
 } from '../common/errors/AppError.js';
 import { success } from '../common/utils/response.js';
 import { z } from 'zod';
 import { generateOTP } from '../services/auth/otp.service.js';
+import type { AuthRequest } from '../middleware/auth.middleware.js';
 
 /**
  * Validation schemas
@@ -54,6 +58,11 @@ const verifyRegistrationSchema = z.object({
 const verifyWhatsAppSchema = z.object({
     phoneNumber: z.string().regex(/^\+?[1-9]\d{1,14}$/, 'Invalid phone number format'),
     otp: z.string().length(6, 'OTP must be 6 digits'),
+});
+
+const generateWidgetTokenSchema = z.object({
+    vendorId: z.string().uuid('Invalid vendor ID'),
+    productId: z.string().uuid('Invalid product ID').optional(),
 });
 
 /**
@@ -643,6 +652,56 @@ export class VerificationController {
             default:
                 return {};
         }
+    }
+
+    /**
+     * Generate verification token for widget (requires authenticated student)
+     */
+    public async generateWidgetToken(req: AuthRequest, res: Response): Promise<void> {
+        if (!req.user || req.user.role !== 'student') {
+            throw new UnauthorizedError('Only verified students can generate widget tokens');
+        }
+
+        // Validate request body
+        const validated = generateWidgetTokenSchema.parse(req.body);
+
+        // Get student ID from user
+        const studentResult = await db.query(
+            'SELECT id, status FROM students WHERE user_id = $1',
+            [req.user.userId]
+        );
+
+        if (studentResult.rows.length === 0) {
+            throw new BadRequestError('Student profile not found');
+        }
+
+        const student = studentResult.rows[0];
+
+        // Check if student is verified
+        const userResult = await db.query(
+            'SELECT verification_status FROM users WHERE id = $1',
+            [req.user.userId]
+        );
+
+        if (userResult.rows.length === 0 || userResult.rows[0].verification_status !== 'verified') {
+            throw new UnauthorizedError('Student must be verified to generate widget token');
+        }
+
+        // Generate verification token
+        const { token, expiresAt } = await createVerificationToken(
+            student.id,
+            validated.vendorId,
+            validated.productId
+        );
+
+        success(res, {
+            message: 'Verification token generated successfully',
+            data: {
+                token,
+                expiresAt,
+                expiresInMinutes: 30,
+            },
+        });
     }
 }
 
