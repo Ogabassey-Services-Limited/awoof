@@ -25,3 +25,8 @@ docker-compose.yml
 coverage/
 *.test.ts
 *.spec.ts
+# Dev-only scripts (not for production image)
+src/scripts/clear-test-accounts.ts
+src/scripts/create-admin.ts
+src/database/migrations/test-redis.ts
+src/database/migrations/clear_test_data.sql

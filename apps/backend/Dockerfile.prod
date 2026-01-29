@@ -1,4 +1,4 @@
-FROM node as builder
+FROM node:20-alpine AS builder
 
 # Create app directory
 WORKDIR /usr/src/app
@@ -12,20 +12,33 @@ COPY . .
 
 RUN npm run build
 
-FROM node:slim
+FROM node:20-alpine
 
-ENV NODE_ENV production
-USER node
+ENV NODE_ENV=production
+ENV PORT=5000
 
-# Create app directory
+# Create app directory and user
 WORKDIR /usr/src/app
 
-# Install app dependencies
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001
+
+# Install app dependencies (production only)
 COPY package*.json ./
+RUN npm ci --production && npm cache clean --force
 
-RUN npm ci --production
+# Copy built application
+COPY --from=builder --chown=nodejs:nodejs /usr/src/app/dist ./dist
 
-COPY --from=builder /usr/src/app/dist ./dist
+# Create uploads directory for vendor files (node user needs write access)
+RUN mkdir -p /usr/src/app/uploads/vendors && chown -R nodejs:nodejs /usr/src/app/uploads
 
-EXPOSE 8080
+USER nodejs
+
+EXPOSE 5000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:5000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+
 CMD [ "node", "dist/index.js" ]

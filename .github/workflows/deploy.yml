@@ -1,0 +1,60 @@
+# Deploy Awoof to Hostinger VPS on push to main
+# Requires GitHub repo Secrets: VPS_SSH_KEY, and optionally VPS_HOST, VPS_USER
+
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Allow manual run from Actions tab
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      VPS_HOST: ${{ secrets.VPS_HOST }}
+      VPS_USER: ${{ secrets.VPS_USER }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set VPS connection defaults
+        id: vps
+        run: |
+          echo "host=${VPS_HOST:-82.29.190.219}" >> $GITHUB_OUTPUT
+          echo "user=${VPS_USER:-developer}" >> $GITHUB_OUTPUT
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ steps.vps.outputs.host }} >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Sync files to VPS
+        run: |
+          rsync -avz --delete \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            --exclude 'node_modules' \
+            --exclude 'apps/*/node_modules' \
+            --exclude 'packages/node_modules' \
+            --exclude '.next' \
+            --exclude 'apps/web/.next' \
+            --exclude '.git/objects' \
+            --exclude '*.log' \
+            --exclude '.env' \
+            ./ ${{ steps.vps.outputs.user }}@${{ steps.vps.outputs.host }}:~/awoof/
+
+      - name: Build and start containers on VPS
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ${{ steps.vps.outputs.user }}@${{ steps.vps.outputs.host }} \
+            "cd ~/awoof && sg docker -c 'docker compose -f docker-compose.hostinger.yml up -d --build'"
+
+      - name: Verify deployment
+        run: |
+          sleep 15
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            ${{ steps.vps.outputs.user }}@${{ steps.vps.outputs.host }} \
+            "sg docker -c 'cd ~/awoof && docker compose -f docker-compose.hostinger.yml ps'"
