@@ -1,0 +1,49 @@
+name: Bundle Analysis
+
+on:
+  # Run weekly to keep an eye on size drift
+  schedule:
+    - cron: "0 9 * * 1" # Every Monday at 9am
+  # Allow manual trigger
+  workflow_dispatch:
+  # Run on main branch pushes to verify impact
+  push:
+    branches: [main]
+    paths:
+      - "apps/web/package.json"
+      - "apps/web/package-lock.json"
+      - "apps/web/next.config.ts"
+      - "apps/web/next.config.js"
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install Dependencies
+        working-directory: apps/web
+        run: npm ci || npm install
+
+      - name: Build & Analyze
+        working-directory: apps/web
+        run: npm run analyze || npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+
+      - name: Upload Analysis Report
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: bundle-analysis-report
+          path: apps/web/.next/analyze/
+          retention-days: 30

@@ -1,10 +1,12 @@
+import { Button } from "@/components/ui/button";
 import React from "react";
 
 function Googleplaystore() {
   return (
-    <div className="flex bg-white text-black rounded-xl items-center justify-center border border-white">
-      <div className="mr-3">
-        <svg viewBox="38 336.7 120.9 129.2" width="30" className="">
+    // <Button className="flex bg-white text-black rounded-xl items-center justify-center ">
+    <Button  className="flex bg-white text-black rounded-3xl items-center justify-center h-12 px-9 ">
+      <div className="">
+        <svg viewBox="38 336.7 120.9 129.2" width="38" height="38" className="!w-[38px] !h-[38px]">
           <path
             fill="#FFD400"
             d="M119.2,421.2c15.3-8.4,27-14.8,28-15.3c3.2-1.7,6.5-6.2,0-9.7  c-2.1-1.1-13.4-7.3-28-15.3l-20.1,20.2L119.2,421.2z"
@@ -26,7 +28,7 @@ function Googleplaystore() {
       <div>
         <div className="font-semibold text-[12px] leading-[100%] tracking-[0px] font-inter">Download for Android</div>
       </div>
-    </div>
+    </Button>
   );
 }
 
