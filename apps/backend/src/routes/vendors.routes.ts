@@ -12,6 +12,7 @@ import { ProductController } from '../controllers/product.controller.js';
 import { OrderController } from '../controllers/order.controller.js';
 import { PaymentController } from '../controllers/payment.controller.js';
 import { AnalyticsController } from '../controllers/analytics.controller.js';
+import { VendorSupportController } from '../controllers/vendor-support.controller.js';
 import { upload } from '../config/upload.js';
 
 const router = Router();
@@ -20,6 +21,7 @@ const productController = new ProductController();
 const orderController = new OrderController();
 const paymentController = new PaymentController();
 const analyticsController = new AnalyticsController();
+const vendorSupportController = new VendorSupportController();
 
 /**
  * @route   POST /api/vendors/upload
@@ -288,6 +290,54 @@ router.get(
     '/analytics',
     authenticate,
     asyncHandler(analyticsController.getAnalytics.bind(analyticsController))
+);
+
+/**
+ * Support Ticket Routes
+ */
+
+/**
+ * @route   POST /api/vendors/support-tickets
+ * @desc    Create a new support ticket
+ * @access  Private (Vendor)
+ */
+router.post(
+    '/support-tickets',
+    authenticate,
+    asyncHandler(vendorSupportController.createTicket.bind(vendorSupportController))
+);
+
+/**
+ * @route   GET /api/vendors/support-tickets
+ * @desc    Get all support tickets for the vendor
+ * @access  Private (Vendor)
+ */
+router.get(
+    '/support-tickets',
+    authenticate,
+    asyncHandler(vendorSupportController.getTickets.bind(vendorSupportController))
+);
+
+/**
+ * @route   GET /api/vendors/support-tickets/:id
+ * @desc    Get a single support ticket with responses
+ * @access  Private (Vendor)
+ */
+router.get(
+    '/support-tickets/:id',
+    authenticate,
+    asyncHandler(vendorSupportController.getTicket.bind(vendorSupportController))
+);
+
+/**
+ * @route   POST /api/vendors/support-tickets/:id/responses
+ * @desc    Add a response to a support ticket
+ * @access  Private (Vendor)
+ */
+router.post(
+    '/support-tickets/:id/responses',
+    authenticate,
+    asyncHandler(vendorSupportController.addResponse.bind(vendorSupportController))
 );
 
 export default router;

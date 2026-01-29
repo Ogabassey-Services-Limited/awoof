@@ -42,6 +42,7 @@ export function Step3DocumentUpload({
     } = useFileUpload({
         maxSize: 5 * 1024 * 1024, // 5MB (matching backend limit)
     });
+    const [logoError, setLogoError] = React.useState<string | null>(null);
 
     // Initialize local files state with existing files from parent on mount
     const initializedRef = React.useRef(false);
@@ -132,7 +133,15 @@ export function Step3DocumentUpload({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Validate all files (optional - files can be uploaded later)
+        // Validate that logo is required
+        const logoFile = getFile('logoImage');
+        if (!logoFile) {
+            setLogoError('Logo image is required');
+            return;
+        }
+        setLogoError(null);
+
+        // Validate all files
         const isValid = validateAllFiles();
         if (!isValid) {
             return;
@@ -197,17 +206,24 @@ export function Step3DocumentUpload({
                     </p>
                 </div>
 
-                {/* Logo Image */}
+                {/* Logo Image - Required */}
                 <div>
+                    <Label className="mb-2 block">
+                        Logo Image <span className="text-red-600">*</span>
+                    </Label>
                     <FileUploadField
                         label="Logo Image"
                         file={getFile('logoImage')}
                         onChange={(file) => {
                             handleFileChange('logoImage', file);
+                            if (file) {
+                                setLogoError(null);
+                            }
                         }}
                         accept="image/*"
-                        error={getError('logoImage') || undefined}
+                        error={getError('logoImage') || logoError || undefined}
                         maxSize={5 * 1024 * 1024} // 5MB
+                        required
                     />
                     <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -217,7 +233,7 @@ export function Step3DocumentUpload({
                                 clipRule="evenodd"
                             />
                         </svg>
-                        Max File size up to 5MB
+                        Max File size up to 5MB. Logo is required.
                     </p>
                 </div>
 

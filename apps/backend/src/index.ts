@@ -13,6 +13,7 @@ import { db } from './config/database.js';
 import { redis } from './config/redis.js';
 import { errorHandler } from './common/middleware/errorHandler.js';
 import { logger } from './common/middleware/logger.js';
+import { appLogger } from './common/logger.js';
 import { swaggerSpec } from './config/swagger.js';
 
 /**
@@ -53,15 +54,17 @@ class App {
         status: 'ok',
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
-        environment: config.env,
+        ...(config.isDevelopment && { environment: config.env }),
       });
     });
 
-    // Swagger API documentation
-    this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-      customCss: '.swagger-ui .topbar { display: none }',
-      customSiteTitle: 'Awoof API Documentation',
-    }));
+    // Swagger API documentation (development only; avoid exposing API surface in production)
+    if (config.isDevelopment) {
+      this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+        customCss: '.swagger-ui .topbar { display: none }',
+        customSiteTitle: 'Awoof API Documentation',
+      }));
+    }
 
     // Static file serving for uploads
     this.app.use('/uploads', express.static('uploads'));
@@ -71,19 +74,21 @@ class App {
    * Initialize routes
    */
   private async initializeRoutes(): Promise<void> {
-    // Root route
+    // Root route (minimal in production)
     this.app.get('/', (_req, res) => {
       res.json({
         message: 'Awoof Backend API',
         version: '1.0.0',
-        documentation: '/api-docs',
-        endpoints: {
-          auth: '/api/auth',
-          students: '/api/students',
-          universities: '/api/universities',
-          verification: '/api/verification',
-          vendors: '/api/vendors',
-        },
+        ...(config.isDevelopment && {
+          documentation: '/api-docs',
+          endpoints: {
+            auth: '/api/auth',
+            students: '/api/students',
+            universities: '/api/universities',
+            verification: '/api/verification',
+            vendors: '/api/vendors',
+          },
+        }),
       });
     });
 
@@ -91,59 +96,63 @@ class App {
     try {
       const authRoutes = await import('./routes/auth.routes.js');
       this.app.use('/api/auth', authRoutes.default);
-      console.log('✅ Auth routes registered successfully');
+      appLogger.info('Auth routes registered');
     } catch (error) {
-      console.error('❌ Failed to register auth routes:', error);
+      appLogger.error('Failed to register auth routes:', error);
       throw error;
     }
 
-    // Student routes
     try {
       const studentRoutes = await import('./routes/students.routes.js');
       this.app.use('/api/students', studentRoutes.default);
-      console.log(' Student routes registered successfully');
+      appLogger.info('Student routes registered');
     } catch (error) {
-      console.error(' Failed to register student routes:', error);
+      appLogger.error('Failed to register student routes:', error);
       throw error;
     }
 
-    // University routes
     try {
       const universityRoutes = await import('./routes/universities.routes.js');
       this.app.use('/api/universities', universityRoutes.default);
-      console.log(' University routes registered successfully');
+      appLogger.info('University routes registered');
     } catch (error) {
-      console.error(' Failed to register university routes:', error);
+      appLogger.error('Failed to register university routes:', error);
       throw error;
     }
 
-    // Verification routes
     try {
       const verificationRoutes = await import('./routes/verification.routes.js');
       this.app.use('/api/verification', verificationRoutes.default);
-      console.log(' Verification routes registered successfully');
+      appLogger.info('Verification routes registered');
     } catch (error) {
-      console.error(' Failed to register verification routes:', error);
+      appLogger.error('Failed to register verification routes:', error);
       throw error;
     }
 
-    // Vendor routes
     try {
       const vendorRoutes = await import('./routes/vendors.routes.js');
       this.app.use('/api/vendors', vendorRoutes.default);
-      console.log('✅ Vendor routes registered successfully');
+      appLogger.info('Vendor routes registered');
     } catch (error) {
-      console.error('❌ Failed to register vendor routes:', error);
+      appLogger.error('Failed to register vendor routes:', error);
       throw error;
     }
 
-    // Products routes
     try {
       const productsRoutes = await import('./routes/products.routes.js');
       this.app.use('/api/products', productsRoutes.default);
-      console.log('✅ Products routes registered successfully');
+      appLogger.info('Products routes registered');
     } catch (error) {
-      console.error('❌ Failed to register products routes:', error);
+      appLogger.error('Failed to register products routes:', error);
+      throw error;
+    }
+
+    try {
+      const adminRoutes = await import('./routes/admin.routes.js');
+      this.app.use('/api/admin', adminRoutes.default);
+      appLogger.info('Admin routes registered');
+    } catch (error) {
+      appLogger.error('Failed to register admin routes:', error);
       throw error;
     }
   }
@@ -193,15 +202,10 @@ class App {
 
       // Start server
       this.app.listen(config.port, () => {
-        console.log(`
-          Awoof Backend API
-          Environment: ${config.env}
-          Server running on http://localhost:${config.port}
-          Started at: ${new Date().toISOString()}
-        `);
+        appLogger.info(`Awoof Backend API listening on port ${config.port}`);
       });
     } catch (error) {
-      console.error('Failed to start server:', error);
+      appLogger.error('Failed to start server:', error);
       process.exit(1);
     }
   }
@@ -210,15 +214,15 @@ class App {
    * Graceful shutdown
    */
   public async shutdown(): Promise<void> {
-    console.log('Shutting down server...');
+    appLogger.info('Shutting down server...');
 
     try {
       await db.close();
       await redis.close();
-      console.log('Server shut down gracefully');
+      appLogger.info('Server shut down gracefully');
       process.exit(0);
     } catch (error) {
-      console.error('Error during shutdown:', error);
+      appLogger.error('Error during shutdown:', error);
       process.exit(1);
     }
   }
@@ -241,13 +245,13 @@ app.start();
 process.on('SIGTERM', () => app.shutdown());
 process.on('SIGINT', () => app.shutdown());
 
-// Handle unhandled errors
+// Handle unhandled errors (always log)
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  appLogger.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
 process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
+  appLogger.error('Uncaught Exception:', error);
   process.exit(1);
 });
 

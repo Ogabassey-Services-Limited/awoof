@@ -7,6 +7,7 @@
 
 // @ts-ignore - sib-api-v3-sdk doesn't have TypeScript definitions
 import SibApiV3Sdk from 'sib-api-v3-sdk';
+import { appLogger } from '../../common/logger.js';
 
 /**
  * Configure Brevo API client
@@ -15,7 +16,7 @@ const defaultClient = SibApiV3Sdk.ApiClient.instance;
 const apiKey = defaultClient.authentications['api-key'];
 
 if (!process.env.BREVO_API_KEY) {
-    console.warn('⚠️ BREVO_API_KEY is not defined. Email functionality will be limited.');
+    appLogger.warn('BREVO_API_KEY is not defined. Email functionality will be limited.');
 } else {
     apiKey.apiKey = process.env.BREVO_API_KEY;
 }
@@ -31,16 +32,13 @@ export const sendEmail = async (
     html: string,
     retries: number = 3
 ): Promise<{ success: boolean; messageId?: string; error?: string }> => {
-    // Check if Brevo API key is configured
     if (!process.env.BREVO_API_KEY) {
-        console.error('❌ BREVO_API_KEY is not configured');
+        appLogger.error('BREVO_API_KEY is not configured');
         return { success: false, error: 'Email service not configured' };
     }
 
     for (let attempt = 1; attempt <= retries; attempt++) {
         try {
-            console.log(`📧 Attempting to send email to: ${to} (attempt ${attempt}/${retries})`);
-
             const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
 
             sendSmtpEmail.subject = subject;
@@ -52,20 +50,16 @@ export const sendEmail = async (
             sendSmtpEmail.to = [{ email: to }];
 
             const result = await apiInstance.sendTransacEmail(sendSmtpEmail);
-
-            console.log('✅ Email sent successfully via Brevo API:', result.messageId);
             return { success: true, messageId: result.messageId };
-        } catch (error: any) {
-            console.error(`❌ Email sending failed (attempt ${attempt}/${retries}):`, error.message);
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : String(error);
+            appLogger.error(`Email sending failed (attempt ${attempt}/${retries}):`, message);
 
             if (attempt === retries) {
-                console.error('❌ All retry attempts failed');
-                return { success: false, error: error.message };
+                return { success: false, error: message };
             }
 
-            // Exponential backoff: 2s, 4s, 8s
             const delay = Math.pow(2, attempt) * 1000;
-            console.log(`⏳ Retrying in ${delay}ms...`);
             await new Promise(resolve => setTimeout(resolve, delay));
         }
     }

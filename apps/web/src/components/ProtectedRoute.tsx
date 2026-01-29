@@ -36,7 +36,7 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
                 if (user?.role === 'vendor') {
                     router.push('/vendor/dashboard');
                 } else if (user?.role === 'student') {
-                    router.push('/student/dashboard');
+                    router.push('/marketplace');
                 } else if (user?.role === 'admin') {
                     router.push('/admin/dashboard');
                 } else {

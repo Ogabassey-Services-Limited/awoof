@@ -32,6 +32,7 @@ import {
     UnauthorizedError,
 } from '../common/errors/AppError.js';
 import { success } from '../common/utils/response.js';
+import { appLogger } from '../common/logger.js';
 import { z } from 'zod';
 import { generateOTP } from '../services/auth/otp.service.js';
 import type { AuthRequest } from '../middleware/auth.middleware.js';
@@ -227,7 +228,7 @@ export class VerificationController {
             const emailResult = await sendMagicLinkEmail(email, magicLinkToken, emailValidation.universityName);
 
             if (!emailResult.success) {
-                console.error('Failed to send magic link:', emailResult.error);
+                appLogger.error('Failed to send magic link:', emailResult.error);
             }
 
             success(res, {
@@ -314,6 +315,15 @@ export class VerificationController {
                 email: verification.email,
                 role: 'student',
             });
+
+            // Create verification success notification
+            try {
+                const { NotificationService } = await import('../services/notification/notification.service.js');
+                await NotificationService.notifyVerificationSuccess(verification.student_id);
+            } catch (error) {
+                // Log error but don't fail the verification
+                appLogger.error('Error creating verification notification:', error);
+            }
 
             success(res, {
                 message: 'Email verified successfully',
@@ -445,6 +455,15 @@ export class VerificationController {
                 email: userEmailResult.rows[0].email,
                 role: 'student',
             });
+
+            // Create verification success notification
+            try {
+                const { NotificationService } = await import('../services/notification/notification.service.js');
+                await NotificationService.notifyVerificationSuccess(studentId);
+            } catch (error) {
+                // Log error but don't fail the verification
+                appLogger.error('Error creating verification notification:', error);
+            }
 
             success(res, {
                 message: 'Registration number verified successfully',
@@ -589,6 +608,15 @@ export class VerificationController {
                 email: userEmailResult.rows[0].email,
                 role: 'student',
             });
+
+            // Create verification success notification
+            try {
+                const { NotificationService } = await import('../services/notification/notification.service.js');
+                await NotificationService.notifyVerificationSuccess(studentId);
+            } catch (error) {
+                // Log error but don't fail the verification
+                appLogger.error('Error creating verification notification:', error);
+            }
 
             success(res, {
                 message: 'WhatsApp OTP verified successfully',

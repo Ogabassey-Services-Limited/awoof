@@ -19,6 +19,7 @@ import {
     ConflictError,
 } from '../common/errors/AppError.js';
 import { success } from '../common/utils/response.js';
+import { appLogger } from '../common/logger.js';
 import type { AuthRequest } from '../middleware/auth.middleware.js';
 import { z } from 'zod';
 
@@ -168,14 +169,12 @@ export class AuthController {
                 // Send verification email (don't await to avoid blocking response)
                 sendEmailVerificationOTP(validated.email, emailOTP, validated.name, validated.role)
                     .then((result) => {
-                        if (result.success) {
-                            console.log(`✅ Email verification OTP sent to ${validated.role}: ${validated.email}`);
-                        } else {
-                            console.error(`❌ Failed to send email verification OTP: ${result.error}`);
+                        if (!result.success) {
+                            appLogger.error('Failed to send email verification OTP:', result.error);
                         }
                     })
                     .catch((error) => {
-                        console.error('❌ Error sending email verification OTP:', error);
+                        appLogger.error('Error sending email verification OTP:', error);
                     });
             }
 
@@ -459,7 +458,7 @@ export class AuthController {
         const emailResult = await sendPasswordResetOTP(user.email, otp);
 
         if (!emailResult.success) {
-            console.error('Failed to send OTP email:', emailResult.error);
+            appLogger.error('Failed to send OTP email:', emailResult.error);
             // Still return success to user (security - don't reveal if email failed)
         }
 
@@ -744,7 +743,7 @@ export class AuthController {
 
         // Get user by email
         const userResult = await db.query(
-            `SELECT id, email, verification_status, role, name
+            `SELECT id, email, verification_status, role
              FROM users 
              WHERE email = $1 AND deleted_at IS NULL`,
             [validated.email]
@@ -780,7 +779,7 @@ export class AuthController {
         );
 
         // Send verification email
-        const emailResult = await sendEmailVerificationOTP(validated.email, emailOTP, user.name, user.role);
+        const emailResult = await sendEmailVerificationOTP(validated.email, emailOTP, undefined, user.role);
 
         if (!emailResult.success) {
             throw new BadRequestError(`Failed to send verification email: ${emailResult.error}`);

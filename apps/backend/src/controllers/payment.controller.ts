@@ -12,11 +12,13 @@ import {
     UnauthorizedError,
 } from '../common/errors/AppError.js';
 import { success } from '../common/utils/response.js';
+import { appLogger } from '../common/logger.js';
 import type { AuthRequest } from '../middleware/auth.middleware.js';
 import { z } from 'zod';
 import crypto from 'crypto';
 import { validateAndConsumeToken } from '../services/verification/verification-token.service.js';
 import { verifyPaystackPayment } from '../services/payment/paystack.service.js';
+import { NotificationService } from '../services/notification/notification.service.js';
 
 /**
  * Validation schemas
@@ -135,8 +137,6 @@ export class PaymentController {
         if (vendorResult.rows.length === 0) {
             throw new NotFoundError('Vendor profile not found');
         }
-
-        const vendorId = vendorResult.rows[0].id;
 
         // Validate request body
         const validated = updatePayoutSettingsSchema.parse(req.body);
@@ -639,6 +639,7 @@ export class PaymentController {
         const transaction = transactionResult.rows[0];
 
         // 8. Update savings stats for student
+        const discountAmount = parseFloat(product.price.toString()) - reportedAmount;
         await db.query(
             `INSERT INTO savings_stats (student_id, total_savings, total_purchases, last_updated)
              VALUES ($1, $2, 1, CURRENT_TIMESTAMP)
@@ -647,8 +648,34 @@ export class PaymentController {
                  total_savings = savings_stats.total_savings + $2,
                  total_purchases = savings_stats.total_purchases + 1,
                  last_updated = CURRENT_TIMESTAMP`,
-            [tokenData.studentId, parseFloat(product.price.toString()) - reportedAmount]
+            [tokenData.studentId, discountAmount]
         );
+
+        // 9. Get updated savings total for milestone check
+        const savingsResult = await db.query(
+            'SELECT total_savings FROM savings_stats WHERE student_id = $1',
+            [tokenData.studentId]
+        );
+        const totalSavings = savingsResult.rows[0]?.total_savings || 0;
+
+        // 10. Create purchase confirmation notification
+        try {
+            await NotificationService.notifyPurchaseConfirmation(
+                tokenData.studentId,
+                product.name,
+                parseFloat(product.price.toString()),
+                discountAmount,
+                transaction.id
+            );
+
+            // Check for savings milestone
+            await NotificationService.notifySavingsMilestone(
+                tokenData.studentId,
+                parseFloat(totalSavings.toString())
+            );
+        } catch (error) {
+            appLogger.error('Error creating notification:', error);
+        }
 
         success(res, {
             message: 'Transaction reported successfully',

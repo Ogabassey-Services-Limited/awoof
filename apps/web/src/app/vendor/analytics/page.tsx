@@ -13,6 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { DashboardLayout } from '@/components/dashboard';
 import apiClient, { getImageUrl } from '@/lib/api-client';
 import Image from 'next/image';
+import { formatCurrency } from '@/lib/format';
 
 const iconProps = { className: 'h-5 w-5', strokeWidth: 1.5, fill: 'currentColor' as const };
 
@@ -96,13 +97,6 @@ interface AnalyticsData {
     topProducts: TopProduct[];
 }
 
-function formatCurrency(amount: number): string {
-    return new Intl.NumberFormat('en-NG', {
-        style: 'currency',
-        currency: 'NGN',
-        minimumFractionDigits: 0,
-    }).format(amount);
-}
 
 function formatDate(dateString: string): string {
     return new Date(dateString).toLocaleDateString('en-US', {

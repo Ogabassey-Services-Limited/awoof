@@ -4,7 +4,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -22,7 +22,7 @@ const verifyEmailSchema = z.object({
 
 type VerifyEmailFormData = z.infer<typeof verifyEmailSchema>;
 
-export default function VendorVerifyEmailPage() {
+function VendorVerifyEmailContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const emailFromQuery = searchParams.get('email') || '';
@@ -176,6 +176,14 @@ export default function VendorVerifyEmailPage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function VendorVerifyEmailPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-white">Loading...</div>}>
+            <VendorVerifyEmailContent />
+        </Suspense>
     );
 }
 

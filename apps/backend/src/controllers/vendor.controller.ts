@@ -41,7 +41,7 @@ export class VendorController {
 
         // Get vendor ID from user
         const vendorResult = await db.query(
-            'SELECT id FROM vendors WHERE user_id = $1 AND deleted_at IS NULL',
+            'SELECT id, logo_url FROM vendors WHERE user_id = $1 AND deleted_at IS NULL',
             [req.user.userId]
         );
 
@@ -50,7 +50,17 @@ export class VendorController {
         }
 
         const vendorId = vendorResult.rows[0].id;
+        const existingLogoUrl = vendorResult.rows[0].logo_url;
         const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+        // Check if logo is being uploaded (required for new vendors without logo)
+        const logoFileArray = files['logoImage'];
+        const hasLogoFile = logoFileArray && logoFileArray.length > 0;
+        
+        // If vendor doesn't have a logo yet and no logo is being uploaded, require it
+        if (!existingLogoUrl && !hasLogoFile) {
+            throw new BadRequestError('Logo image is required');
+        }
 
         const fileUrls: Record<string, string> = {};
 

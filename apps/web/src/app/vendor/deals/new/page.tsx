@@ -41,7 +41,7 @@ const productSchema = z.object({
     description: z.string().optional(),
     price: z.number().positive('Price must be positive'),
     studentPrice: z.number().positive('Student price must be positive'),
-    categoryId: z.string().uuid('Invalid category ID').optional().nullable(),
+    categoryId: z.string().uuid('Invalid category ID').min(1, 'Please select a category'),
     stock: z.number().int().min(0, 'Stock cannot be negative'),
     status: z.enum(['active', 'inactive', 'out_of_stock']),
 });
@@ -192,6 +192,31 @@ export default function NewProductPage() {
                                         />
                                     </div>
 
+                                    <div>
+                                        <Label htmlFor="categoryId">Category *</Label>
+                                        {categories.length > 0 ? (
+                                            <select
+                                                id="categoryId"
+                                                {...register('categoryId')}
+                                                className={`w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 ${errors.categoryId ? 'border-rose-500' : ''}`}
+                                            >
+                                                <option value="">Select a category</option>
+                                                {categories.map((cat) => (
+                                                    <option key={cat.id} value={cat.id}>
+                                                        {cat.name}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        ) : (
+                                            <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
+                                                Loading categories...
+                                            </div>
+                                        )}
+                                        {errors.categoryId && (
+                                            <p className="mt-1 text-sm text-rose-600">{errors.categoryId.message}</p>
+                                        )}
+                                    </div>
+
                                     <div className="grid gap-4 sm:grid-cols-2">
                                         <div>
                                             <Label htmlFor="price">Regular Price (₦) *</Label>
@@ -307,23 +332,6 @@ export default function NewProductPage() {
                                 </div>
                             </div>
 
-                            {/* Category */}
-                            {categories.length > 0 && (
-                                <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                                    <h2 className="mb-4 text-lg font-semibold text-slate-900">Category</h2>
-                                    <select
-                                        {...register('categoryId')}
-                                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                    >
-                                        <option value="">No category</option>
-                                        {categories.map((cat) => (
-                                            <option key={cat.id} value={cat.id}>
-                                                {cat.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
 
                             {/* Actions */}
                             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

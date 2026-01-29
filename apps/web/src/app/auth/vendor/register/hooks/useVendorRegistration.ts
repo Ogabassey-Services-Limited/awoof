@@ -120,7 +120,11 @@ export function useVendorRegistration() {
                 businessWebsite: registrationData.step2.businessWebsite || '',
             });
 
-            // Step 3: Upload files if any
+            // Step 3: Upload files - logo is required
+            if (!registrationData.files.logoImage) {
+                throw new Error('Logo image is required');
+            }
+
             const filesToUpload = Object.entries(registrationData.files).filter(([, file]) => file !== undefined);
             if (filesToUpload.length > 0) {
                 const formData = new FormData();

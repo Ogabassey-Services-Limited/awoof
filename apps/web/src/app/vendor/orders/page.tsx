@@ -17,6 +17,7 @@ import type { User } from '@/lib/auth';
 import apiClient, { getImageUrl } from '@/lib/api-client';
 import Link from 'next/link';
 import Image from 'next/image';
+import { formatCurrency } from '@/lib/format';
 
 const iconProps = { className: 'h-5 w-5', strokeWidth: 1.5, fill: 'currentColor' as const };
 
@@ -121,12 +122,7 @@ export default function VendorOrdersPage() {
         }
     };
 
-    const formatCurrency = (amount: number) => {
-        return new Intl.NumberFormat('en-NG', {
-            style: 'currency',
-            currency: 'NGN',
-        }).format(amount);
-    };
+    // formatCurrency is imported from @/lib/format
 
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString('en-US', {

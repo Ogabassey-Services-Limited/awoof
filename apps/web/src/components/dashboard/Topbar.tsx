@@ -60,8 +60,8 @@ export function DashboardTopbar({
                 >
                     <Bell className="h-5 w-5" />
                     <span className="absolute right-2 top-2 inline-flex h-2 w-2">
-                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-500 opacity-75"></span>
-                        <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-500"></span>
+                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full opacity-75" style={{ backgroundColor: '#1D4ED8' }}></span>
+                        <span className="relative inline-flex h-2 w-2 rounded-full" style={{ backgroundColor: '#1D4ED8' }}></span>
                     </span>
                 </button>
 
@@ -80,7 +80,7 @@ export function DashboardTopbar({
                                 height={40}
                             />
                         ) : (
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold" style={{ backgroundColor: 'rgba(29, 78, 216, 0.1)', color: '#1D4ED8' }}>
                                 {profileName?.[0]?.toUpperCase() ?? 'U'}
                             </div>
                         )}

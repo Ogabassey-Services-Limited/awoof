@@ -242,56 +242,75 @@ export class StudentController {
         const limit = parseInt(req.query.limit as string) || 20;
         const offset = (page - 1) * limit;
 
+        // Get student ID
+        const studentResult = await db.query(
+            'SELECT id FROM students WHERE user_id = $1',
+            [req.user.userId]
+        );
+
+        if (studentResult.rows.length === 0) {
+            throw new NotFoundError('Student profile not found');
+        }
+
+        const studentId = studentResult.rows[0].id;
+
         // Get total count
         const countResult = await db.query(
             `SELECT COUNT(*) as total
              FROM transactions t
-             JOIN users u ON t.user_id = u.id
-             WHERE u.id = $1 AND u.deleted_at IS NULL`,
-            [req.user.userId]
+             WHERE t.student_id = $1`,
+            [studentId]
         );
 
         const total = parseInt(countResult.rows[0].total);
 
-        // Get transactions
+        // Get transactions with product and vendor info
         const transactionsResult = await db.query(
             `SELECT 
                 t.id,
-                t.transaction_id,
                 t.amount,
-                t.discount_amount,
                 t.status,
-                t.payment_method,
                 t.created_at,
                 p.id as product_id,
                 p.name as product_name,
-                p.vendor_id,
-                v.name as vendor_name
+                p.price as product_price,
+                p.student_price,
+                p.category_id,
+                v.id as vendor_id,
+                v.name as vendor_name,
+                c.name as category_name
              FROM transactions t
-             JOIN users u ON t.user_id = u.id
-             LEFT JOIN products p ON t.product_id = p.id
-             LEFT JOIN vendors v ON p.vendor_id = v.id
-             WHERE u.id = $1 AND u.deleted_at IS NULL
+             LEFT JOIN products p ON t.product_id = p.id AND p.deleted_at IS NULL
+             LEFT JOIN vendors v ON t.vendor_id = v.id
+             LEFT JOIN categories c ON p.category_id = c.id
+             WHERE t.student_id = $1
              ORDER BY t.created_at DESC
              LIMIT $2 OFFSET $3`,
-            [req.user.userId, limit, offset]
+            [studentId, limit, offset]
         );
 
-        const transactions = transactionsResult.rows.map(t => ({
-            id: t.id,
-            transactionId: t.transaction_id,
-            amount: parseFloat(t.amount),
-            discountAmount: parseFloat(t.discount_amount || '0'),
-            status: t.status,
-            paymentMethod: t.payment_method,
-            createdAt: t.created_at,
-            product: t.product_id ? {
-                id: t.product_id,
-                name: t.product_name,
-                vendorId: t.vendor_id,
-                vendorName: t.vendor_name,
-            } : null,
-        }));
+        const transactions = transactionsResult.rows.map(t => {
+            const originalPrice = parseFloat(t.product_price || t.amount || '0');
+            const studentPrice = parseFloat(t.student_price || t.amount || '0');
+            const discountAmount = originalPrice - studentPrice;
+
+            return {
+                id: t.id,
+                transactionId: t.id, // Use transaction id as transaction_id
+                amount: originalPrice,
+                discountAmount: discountAmount > 0 ? discountAmount : 0,
+                finalAmount: studentPrice,
+                status: t.status,
+                createdAt: t.created_at,
+                product: t.product_id ? {
+                    id: t.product_id,
+                    name: t.product_name,
+                    vendorId: t.vendor_id,
+                    vendorName: t.vendor_name,
+                    categoryName: t.category_name,
+                } : null,
+            };
+        });
 
         success(res, {
             message: 'Purchase history retrieved successfully',
@@ -316,14 +335,17 @@ export class StudentController {
         }
 
         // Get savings stats from transactions
+        // Join through students table to get to users, and calculate discount from product prices
         const statsResult = await db.query(
             `SELECT 
                 COUNT(*) as total_purchases,
-                COALESCE(SUM(discount_amount), 0) as total_savings,
-                COALESCE(SUM(amount - discount_amount), 0) as total_spent,
-                COALESCE(SUM(amount), 0) as total_value
+                COALESCE(SUM(p.price - p.student_price), 0) as total_savings,
+                COALESCE(SUM(t.amount), 0) as total_spent,
+                COALESCE(SUM(p.price), 0) as total_value
              FROM transactions t
-             JOIN users u ON t.user_id = u.id
+             JOIN students s ON t.student_id = s.id
+             JOIN users u ON s.user_id = u.id
+             JOIN products p ON t.product_id = p.id
              WHERE u.id = $1 
                AND u.deleted_at IS NULL 
                AND t.status = 'completed'`,
@@ -337,9 +359,10 @@ export class StudentController {
             `SELECT 
                 c.name as category_name,
                 COUNT(*) as purchase_count,
-                COALESCE(SUM(t.discount_amount), 0) as savings
+                COALESCE(SUM(p.price - p.student_price), 0) as savings
              FROM transactions t
-             JOIN users u ON t.user_id = u.id
+             JOIN students s ON t.student_id = s.id
+             JOIN users u ON s.user_id = u.id
              LEFT JOIN products p ON t.product_id = p.id
              LEFT JOIN categories c ON p.category_id = c.id
              WHERE u.id = $1 

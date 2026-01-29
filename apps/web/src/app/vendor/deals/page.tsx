@@ -17,6 +17,7 @@ import { DashboardLayout } from '@/components/dashboard';
 import type { User } from '@/lib/auth';
 import apiClient, { getImageUrl } from '@/lib/api-client';
 import Link from 'next/link';
+import { formatCurrency } from '@/lib/format';
 
 const iconProps = { className: 'h-5 w-5', strokeWidth: 1.5, fill: 'currentColor' as const };
 
@@ -273,13 +274,13 @@ export default function VendorDealsPage() {
                                             <div>
                                                 <p className="text-xs text-slate-500">Regular Price</p>
                                                 <p className="text-lg font-semibold text-slate-900">
-                                                    ₦{product.price.toLocaleString()}
+                                                    {formatCurrency(product.price)}
                                                 </p>
                                             </div>
                                             <div>
                                                 <p className="text-xs text-slate-500">Student Price</p>
                                                 <p className="text-lg font-semibold text-blue-600">
-                                                    ₦{product.student_price.toLocaleString()}
+                                                    {formatCurrency(product.student_price)}
                                                 </p>
                                             </div>
                                         </div>
