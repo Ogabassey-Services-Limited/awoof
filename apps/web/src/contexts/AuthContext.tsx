@@ -71,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (userData.role === 'vendor') {
                 window.location.href = '/vendor/dashboard';
             } else if (userData.role === 'student') {
-                window.location.href = '/student/dashboard';
+                window.location.href = '/marketplace';
             } else if (userData.role === 'admin') {
                 window.location.href = '/admin/dashboard';
             } else {
@@ -104,7 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             } else if (userData.role === 'vendor') {
                 window.location.href = '/vendor/dashboard';
             } else if (userData.role === 'student') {
-                window.location.href = '/student/dashboard';
+                window.location.href = '/marketplace';
             } else {
                 window.location.href = '/';
             }

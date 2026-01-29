@@ -31,9 +31,9 @@ function Header() {
                 <div className="flex items-center gap-4">
                     {isAuthenticated ? (
                         <>
-                            <Link href={user?.role === 'vendor' ? '/vendor/dashboard' : '/student/dashboard'}>
+                            <Link href={user?.role === 'vendor' ? '/vendor/dashboard' : '/marketplace'}>
                                 <Button size={"lg"} variant="outline" className='rounded-4xl px-7'>
-                                    <span className='text-[#1D4ED8] text-[20px] font-bold'>Dashboard</span>
+                                    <span className='text-[#1D4ED8] text-[20px] font-bold'>{user?.role === 'vendor' ? 'Dashboard' : 'Marketplace'}</span>
                                 </Button>
                             </Link>
                             <Button

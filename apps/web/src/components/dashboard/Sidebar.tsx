@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { LogOut } from 'lucide-react';
 import type { DashboardNavItem } from './types';
@@ -36,10 +37,11 @@ export function DashboardSidebar({
                         variant === 'primary'
                             ? 'text-white/80 hover:bg-white/10 hover:text-white'
                             : 'text-white/60 hover:bg-white/5 hover:text-white',
-                        isActive && 'bg-white text-blue-600 shadow-sm'
+                        isActive && 'bg-white shadow-sm'
                     )}
+                    style={isActive ? { color: '#1D4ED8' } : {}}
                 >
-                    {item.icon && <span className="text-lg">{item.icon}</span>}
+                    {item.icon && <span className="text-lg" style={isActive ? { color: '#1D4ED8' } : {}}>{item.icon}</span>}
                     {!isCollapsed && (
                         <>
                             <span>{item.label}</span>
@@ -55,13 +57,24 @@ export function DashboardSidebar({
     return (
         <aside
             className={cn(
-                'flex h-full flex-col justify-between bg-blue-600 px-3 py-6 text-white transition-all duration-300',
+                'flex h-full flex-col justify-between px-3 py-6 text-white transition-all duration-300',
                 isCollapsed ? 'w-20' : 'w-64'
             )}
+            style={{ backgroundColor: '#1D4ED8' }}
         >
             <div className="space-y-8">
-                <div className={cn('px-4 text-xl font-bold tracking-tight', isCollapsed && 'text-center text-lg')}>
-                    {isCollapsed ? 'A' : 'Awoof'}
+                <div className={cn('px-4', isCollapsed && 'flex justify-center')}>
+                    {isCollapsed ? (
+                        <div className="text-xl font-bold text-white">A</div>
+                    ) : (
+                        <Image
+                            src="/images/awoofLogo.png"
+                            alt="Awoof Logo"
+                            width={120}
+                            height={40}
+                            className="object-contain"
+                        />
+                    )}
                 </div>
 
                 <nav className="space-y-1">{renderItems(navItems, 'primary')}</nav>

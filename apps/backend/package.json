@@ -10,12 +10,10 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint src --ext .ts",
     "type-check": "tsc --noEmit",
     "db:migrate": "tsx src/database/migrations/run.ts",
-    "db:rollback": "echo 'Rollback not implemented yet'",
-    "db:clear": "docker-compose -f ../packages/docker-compose.dev.yml exec -T db psql -U root -d awoofDB < src/database/migrations/clear_test_data.sql || echo 'Note: Run this from project root or ensure Docker is running'"
+    "admin:create:docker": "tsx src/scripts/create-admin-docker.ts"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",

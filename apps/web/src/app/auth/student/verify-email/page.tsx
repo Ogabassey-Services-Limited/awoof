@@ -4,7 +4,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -22,7 +22,7 @@ const verifyEmailSchema = z.object({
 
 type VerifyEmailFormData = z.infer<typeof verifyEmailSchema>;
 
-export default function StudentVerifyEmailPage() {
+function StudentVerifyEmailContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const emailFromQuery = searchParams.get('email') || '';
@@ -59,8 +59,8 @@ export default function StudentVerifyEmailPage() {
                 email: data.email,
                 otp: data.otp,
             });
-            // Redirect to student dashboard after successful verification
-            router.push('/student/dashboard?verified=true');
+            // Redirect to marketplace after successful verification
+            router.push('/marketplace?verified=true');
         } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
             setError(err.response?.data?.error?.message || 'Invalid OTP. Please try again.');
         } finally {
@@ -179,3 +179,10 @@ export default function StudentVerifyEmailPage() {
     );
 }
 
+export default function StudentVerifyEmailPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-white">Loading...</div>}>
+            <StudentVerifyEmailContent />
+        </Suspense>
+    );
+}

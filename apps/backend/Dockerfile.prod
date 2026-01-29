@@ -30,6 +30,9 @@ RUN npm ci --production && npm cache clean --force
 # Copy built application
 COPY --from=builder --chown=nodejs:nodejs /usr/src/app/dist ./dist
 
+# Create uploads directory for vendor files (node user needs write access)
+RUN mkdir -p /usr/src/app/uploads/vendors && chown -R nodejs:nodejs /usr/src/app/uploads
+
 USER nodejs
 
 EXPOSE 5000

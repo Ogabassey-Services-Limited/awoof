@@ -82,7 +82,7 @@ export async function verifyPaystackPayment(
  * Check if a payment reference has already been used
  */
 export async function checkDuplicatePayment(
-    paymentReference: string
+    _paymentReference: string
 ): Promise<boolean> {
     // This will be checked in the database by the controller
     // This function is here for potential future use (e.g., caching)

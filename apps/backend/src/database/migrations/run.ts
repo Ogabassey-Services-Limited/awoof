@@ -6,6 +6,7 @@
  */
 
 import { db } from '../../config/database.js';
+import { appLogger } from '../../common/logger.js';
 import { readFileSync, readdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -49,7 +50,7 @@ async function ensureMigrationTable(): Promise<void> {
     `;
 
     await db.query(createTableQuery);
-    console.log('Migration table ready');
+    appLogger.info('Migration table ready');
 }
 
 /**
@@ -84,14 +85,14 @@ async function executeMigration(filename: string): Promise<void> {
     const filePath = join(__dirname, filename);
     const sql = readFileSync(filePath, 'utf-8');
 
-    console.log(`📄 Running migration: ${filename}`);
+    appLogger.info(`📄 Running migration: ${filename}`);
 
     try {
         await db.query(sql);
         await recordMigration(filename);
-        console.log(`Migration ${filename} executed successfully`);
+        appLogger.info(`Migration ${filename} executed successfully`);
     } catch (error) {
-        console.error(`Migration ${filename} failed:`, error);
+        appLogger.error(`Migration ${filename} failed:`, error);
         throw error;
     }
 }
@@ -100,7 +101,7 @@ async function executeMigration(filename: string): Promise<void> {
  * Run all pending migrations
  */
 export async function runMigrations(): Promise<void> {
-    console.log('Starting database migrations...\n');
+    appLogger.info('Starting database migrations...\n');
 
     try {
         // Ensure migration table exists
@@ -117,21 +118,21 @@ export async function runMigrations(): Promise<void> {
         );
 
         if (pendingMigrations.length === 0) {
-            console.log('All migrations are up to date');
+            appLogger.info('All migrations are up to date');
             return;
         }
 
-        console.log(`Found ${pendingMigrations.length} pending migration(s)\n`);
+        appLogger.info(`Found ${pendingMigrations.length} pending migration(s)\n`);
 
         // Execute pending migrations in order
         for (const filename of pendingMigrations) {
             await executeMigration(filename);
-            console.log('');
+            appLogger.info('');
         }
 
-        console.log('All migrations completed successfully');
+        appLogger.info('All migrations completed successfully');
     } catch (error) {
-        console.error('Migration failed:', error);
+        appLogger.error('Migration failed:', error);
         process.exit(1);
     }
 }
@@ -143,7 +144,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
             process.exit(0);
         })
         .catch((error) => {
-            console.error(error);
+            appLogger.error(error);
             process.exit(1);
         });
 }

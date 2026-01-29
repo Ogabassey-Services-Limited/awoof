@@ -4,7 +4,7 @@
 
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { BarChart3, CreditCard, LayoutDashboard, LifeBuoy, Puzzle, Settings, ShoppingBag, Tag } from 'lucide-react';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -30,7 +30,7 @@ const secondaryNavItems = [
     { id: 'settings', label: 'Settings', href: '/vendor/settings', icon: <Settings {...iconProps} /> },
 ];
 
-export default function VendorDashboardPage() {
+function VendorDashboardContent() {
     const { user, refreshUser, logout } = useAuth();
     const searchParams = useSearchParams();
 
@@ -199,4 +199,11 @@ export default function VendorDashboardPage() {
     );
 }
 
+export default function VendorDashboardPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+            <VendorDashboardContent />
+        </Suspense>
+    );
+}
 

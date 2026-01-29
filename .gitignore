@@ -56,3 +56,8 @@ apps/web/uploads/
 *.key
 *.cert
 
+# GitHub Actions deploy key (never commit)
+.github/deploy_key
+.github/deploy_key.pub
+deploy_key_private.txt
+
