@@ -3,7 +3,7 @@
 import React from "react";
 import Applestore from "./applestore";
 import Googleplaystore from "./googleplaystore";
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 import SplitText from "@/components/ui/SplitText";
 
 export default function Banner() {
@@ -35,7 +35,7 @@ export default function Banner() {
             textAlign="center"
           />
         </div>
-        <motion.div initial={{scale: 1.5, opacity: 0}} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.5, delay: 2}} className="flex justify-center space-x-4 max-w-md">
+        <motion.div initial={{ scale: 1.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.5, delay: 2 }} className="flex justify-center space-x-4 max-w-md">
           <Googleplaystore />
           <Applestore />
         </motion.div>

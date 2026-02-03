@@ -2,12 +2,11 @@
 
 FROM node:18-alpine
 
-# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
 RUN apk add --no-cache libc6-compat
 
 WORKDIR /app
 
-# Install dependencies based on the preferred package manager
+# Install dependencies based on the preferred package manager (used at build time; at runtime volume may overwrite)
 COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* .npmrc* ./
 RUN \
   if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
@@ -16,10 +15,12 @@ RUN \
   else echo "Lockfile not found." && exit 1; \
   fi
 
-# Copy source code
+# Copy source code and entrypoint
 COPY . .
+COPY docker-entrypoint.dev.sh /docker-entrypoint.dev.sh
+RUN chmod +x /docker-entrypoint.dev.sh
 
-# Install dependencies again (in case package.json changed)
+# Install deps again so image has full node_modules (runtime volume may replace /app and leave node_modules empty)
 RUN \
   if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
   elif [ -f package-lock.json ]; then npm ci; \
@@ -32,13 +33,11 @@ RUN adduser --system --uid 1001 nextjs
 RUN chown -R nextjs:nodejs /app
 
 ENV NODE_ENV=development
-# Enable polling for Docker hot reload
 ENV WATCHPACK_POLLING=true
 ENV CHOKIDAR_USEPOLLING=true
-
 EXPOSE 3000
 ENV PORT=3000
 
-USER nextjs
-
+# Entrypoint installs deps into /app/node_modules when the compose volume leaves it empty, then runs CMD as nextjs
+ENTRYPOINT ["/docker-entrypoint.dev.sh"]
 CMD ["npm", "run", "dev"]

@@ -99,6 +99,18 @@ docker-compose -f docker-compose.dev.yml down -v
 - **Health Check:** http://localhost:5001/health
 - **Hot Reload:** Enabled (watches for file changes)
 
+### Web frontend
+
+- **Container:** `awoof-frontend-dev`
+- **Build context:** `../apps/web` (relative to `packages/`) — so the image is built from `apps/web` and reads `package.json` / `package-lock.json` from there.
+- **Port:** `3000`
+- **URL:** http://localhost:3000
+- **Volumes:**
+  - `../apps/web:/app` — host `apps/web` is mounted over container `/app` (source code and config come from the host).
+  - `/app/node_modules` — anonymous volume so the container keeps its own `node_modules` (Linux binaries) and the host’s `node_modules` don’t overwrite them.
+
+On first start (or after `docker-compose down -v`), the anonymous volume is empty, so the container’s `/app/node_modules` would be missing and you’d see “Module not found” for packages like `framer-motion`, `gsap`, `@radix-ui/react-accordion`. The web image’s **entrypoint** (`docker-entrypoint.dev.sh`) runs `npm ci` when it detects missing or incomplete `node_modules`, then starts the dev server. So the first startup may take a bit longer; later starts reuse the volume. If you add or change dependencies in `apps/web/package.json`, rebuild the web image and restart (or run `docker-compose -f docker-compose.dev.yml up -d --build web`).
+
 ## Environment Variables
 
 The backend service uses environment variables from:
@@ -206,6 +218,27 @@ The backend automatically connects using:
    ```
    Should return `PONG`
 
+### Web: "Module not found" for framer-motion, gsap, @radix-ui, etc.
+
+This happens when the container’s `node_modules` is empty or incomplete.
+
+1. **Cause:** Compose mounts host `apps/web` at `/app` and uses an anonymous volume for `/app/node_modules`. That volume can be empty or stale; the entrypoint runs `npm ci` when it detects missing packages (e.g. `framer-motion`, `next`).
+2. **Fix (run from `packages/` directory):**
+   ```bash
+   cd packages
+   docker-compose -f docker-compose.dev.yml build --no-cache web
+   docker-compose -f docker-compose.dev.yml up -d web
+   ```
+   Watch logs: `docker-compose -f docker-compose.dev.yml logs -f web`. You should see `[entrypoint] node_modules missing or incomplete — running npm ci...` then the dev server. First run can take 1–2 minutes.
+3. **If it still fails:** Tear down and recreate the web container (and its anonymous volume) so the entrypoint runs again:
+   ```bash
+   docker-compose -f docker-compose.dev.yml stop web
+   docker-compose -f docker-compose.dev.yml rm -f web
+   docker-compose -f docker-compose.dev.yml up -d web
+   ```
+4. **After adding new packages in `apps/web`:** Rebuild and restart:  
+   `docker-compose -f docker-compose.dev.yml up -d --build web`
+
 ### Port already in use
 
 If ports 5432, 6379, or 5001 are already in use:
@@ -261,18 +294,17 @@ docker stats
    curl http://localhost:5001/health
    ```
 
-## Production
+## Production (VPS)
 
-For production deployment, use:
+For production deployment on the VPS, use from the **repository root**:
 ```bash
-docker-compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.hostinger.yml up -d
 ```
 
-Production setup uses:
-- Optimized images
-- Production environment variables
-- Persistent volumes for data
-- Health checks
+See `DEPLOYMENT.md` at the repo root for full production setup. The Hostinger compose uses:
+- Dockerfile.prod for web and backend
+- Production environment variables (see env.deployment.example)
+- Persistent volumes for PostgreSQL and Redis
 
 ## Next Steps
 

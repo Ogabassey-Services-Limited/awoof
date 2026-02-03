@@ -50,7 +50,7 @@ export default function Footer() {
 
         {/* Quick Links */}
         <div className="flex justify-center">
-          <div className=""> 
+          <div className="">
             <h3 className="font-bold text-xl mb-6">Quick Links</h3>
             <ul className="space-y-4">
               <li>
@@ -92,7 +92,7 @@ export default function Footer() {
         {/* Newsletter Card */}
         <div className="bg-[#1D4ED8] rounded-2xl p-8 text-white">
           <h3 className="font-bold text-2xl mb-3">
-            Don't Miss the Next Big Awoof
+            Don&apos;t Miss the Next Big Awoof
           </h3>
           <p className="text-sm mb-6 text-blue-100">
             Enter your student email to get early deals.

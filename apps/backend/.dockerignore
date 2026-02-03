@@ -18,9 +18,9 @@ yarn-error.log*
 # Version control
 .git/
 .gitignore
-# Docker-related files
-Dockerfile
-docker-compose.yml
+# Dev-only Docker (Dockerfile.prod needed for production builds)
+Dockerfile.dev
+docker-compose*.yml
 # Testing files
 coverage/
 *.test.ts
