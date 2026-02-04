@@ -123,10 +123,41 @@ You should see `awoof-frontend`, `awoof-backend`, `awoof-postgres`, and `awoof-r
 After the backend is up:
 
 ```bash
-docker exec awoof-backend npm run db:migrate
+docker exec awoof-backend npm run db:migrate:prod
 ```
 
 (If your migrate script is different, use the command from your backend README.)
+
+---
+
+## Create admin user
+
+Create an admin with email `admin@awoof.tech` (or any email) so you can log in at `/auth/admin/login`.
+
+**Local** (Docker DB running on 127.0.0.1:5432):
+
+```bash
+cd apps/backend
+npm run admin:create -- admin@awoof.tech 'YourSecurePassword123!'
+```
+
+Use a strong password (the backend enforces length and complexity).
+
+**VPS** (run inside the backend container; replace the password):
+
+```bash
+# On the VPS
+cd ~/awoof
+docker compose -f docker-compose.hostinger.yml exec backend node dist/scripts/create-admin.js admin@awoof.tech 'YourSecurePassword123!'
+```
+
+From your laptop:
+
+```bash
+ssh developer@82.29.190.219 "cd ~/awoof && sg docker -c 'docker compose -f docker-compose.hostinger.yml exec -T backend node dist/scripts/create-admin.js admin@awoof.tech YourSecurePassword123!'"
+```
+
+If the admin already exists, the script reports that and exits successfully.
 
 ---
 
@@ -154,6 +185,30 @@ Replace `YOUR_VPS_IP` with your actual VPS IP (or use your domain if you’ve po
 
 ---
 
+## Deploy from local machine (no GitHub): `deploy-to-vps.sh`
+
+To push code from your laptop and build on the VPS (no git push/pull on the server):
+
+1. **One-time on VPS:** Ensure the project exists at `~/awoof` (e.g. clone once or create the directory and rsync will fill it).
+2. **One-time on VPS:** Create `~/awoof/.env` from `env.deployment.example` and set secrets (see Step 4).
+3. **From your laptop** (repo root):
+   ```bash
+   export VPS_HOST=YOUR_VPS_IP
+   export VPS_USER=developer   # or your SSH user
+   # export DEPLOY_SSH_KEY=~/.ssh/your_deploy_key   # optional
+   chmod +x deploy-to-vps.sh
+   ./deploy-to-vps.sh
+   ```
+4. **After first deploy or when new migrations exist**, run migrations on the VPS:
+   ```bash
+   ssh developer@YOUR_VPS_IP "cd ~/awoof && sg docker -c 'docker compose -f docker-compose.hostinger.yml exec backend npm run db:migrate:prod'"
+   ```
+   (Or use `docker exec awoof-backend npm run db:migrate:prod` if you're already on the VPS with Docker.)
+
+The script **rsyncs** the repo (excluding `node_modules`, `.next`, `.env`, `.git/objects`) to `~/awoof/`, then runs **docker compose -f docker-compose.hostinger.yml up -d --build** on the VPS. Your local `.env` is not overwritten on the server.
+
+---
+
 ## Optional: Hostinger Docker Manager
 
 If your plan includes **Docker Manager**:
@@ -169,34 +224,113 @@ For this repo, **deploying via SSH and `docker compose -f docker-compose.hosting
 
 ## Optional: Reverse proxy (Nginx) for HTTPS and ports 80/443
 
-To use a domain and HTTPS (and avoid exposing `:3000` and `:5001`):
+To use a domain and HTTPS (and avoid exposing `:3000` and `:5001`).
 
-1. Install Nginx and (optionally) Certbot:
+### Example: Frontend on awoof.tech, API on api.awoof.tech
 
-   ```bash
-   apt install -y nginx certbot python3-certbot-nginx
-   ```
+**1. DNS (at your domain registrar)**
 
-2. Configure Nginx to proxy:
-   - `yourdomain.com` → `http://127.0.0.1:3000` (frontend)
-   - `api.yourdomain.com` → `http://127.0.0.1:5001` (backend)
+- **awoof.tech** – A record → your VPS IP (e.g. `82.29.190.219`).  
+  (If the frontend already works on awoof.tech, this is done.)
+- **api.awoof.tech** – A record → same VPS IP.
 
-3. Set in `.env`:
-   - `NEXT_PUBLIC_API_URL=https://api.yourdomain.com`
-   - `CORS_ORIGIN=https://yourdomain.com`
-   - `FRONTEND_URL=https://yourdomain.com`
+**2. On the VPS: install Nginx and Certbot**
 
-4. Rebuild the frontend so it bakes in the new `NEXT_PUBLIC_API_URL`:
+```bash
+sudo apt update
+sudo apt install -y nginx certbot python3-certbot-nginx
+```
 
-   ```bash
-   docker compose -f docker-compose.hostinger.yml up -d --build web
-   ```
+**3. Nginx config**
 
-5. Run Certbot for SSL:
+Create a server block (e.g. `sudo nano /etc/nginx/sites-available/awoof`):
 
-   ```bash
-   certbot --nginx -d yourdomain.com -d api.yourdomain.com
-   ```
+```nginx
+# Frontend – awoof.tech
+server {
+    listen 80;
+    server_name awoof.tech www.awoof.tech;
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+
+# API – api.awoof.tech
+server {
+    listen 80;
+    server_name api.awoof.tech;
+    location / {
+        proxy_pass http://127.0.0.1:5001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Enable and reload:
+
+```bash
+sudo ln -sf /etc/nginx/sites-available/awoof /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+**4. Get SSL certificates**
+
+```bash
+sudo certbot --nginx -d awoof.tech -d www.awoof.tech -d api.awoof.tech
+```
+
+Follow the prompts. Certbot will configure HTTPS and redirect HTTP → HTTPS.
+
+**5. Set `.env` on the VPS** (in `~/awoof/.env`)
+
+```env
+NEXT_PUBLIC_API_URL=https://api.awoof.tech
+CORS_ORIGIN=https://awoof.tech
+FRONTEND_URL=https://awoof.tech
+```
+
+**6. Rebuild the frontend** so the client uses `https://api.awoof.tech`:
+
+```bash
+cd ~/awoof
+sg docker -c 'docker compose -f docker-compose.hostinger.yml up -d --build web'
+```
+
+Or from your Mac after a full deploy: `./deploy-to-vps.sh` (with the same `.env` on the VPS).
+
+**7. (Optional) Firewall**
+
+If you no longer want to expose 3000/5001 directly:
+
+```bash
+sudo ufw allow 22/tcp
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw enable
+```
+
+Then remove or comment out the `ports:` mapping for 3000 and 5001 in `docker-compose.hostinger.yml` if you want traffic only via Nginx on 80/443.
+
+---
+
+**Generic form** (any domain):
+
+- Frontend: `yourdomain.com` → `http://127.0.0.1:3000`
+- API: `api.yourdomain.com` → `http://127.0.0.1:5001`
+- In `.env`: `NEXT_PUBLIC_API_URL=https://api.yourdomain.com`, `CORS_ORIGIN=https://yourdomain.com`, `FRONTEND_URL=https://yourdomain.com`
+- Certbot: `certbot --nginx -d yourdomain.com -d api.yourdomain.com`
 
 ---
 
@@ -262,11 +396,18 @@ A workflow in `.github/workflows/deploy.yml` deploys to your VPS when you push t
 - Ensure `db` is healthy: `docker compose -f docker-compose.hostinger.yml ps`
 - Check that `DB_USER`, `DB_PASSWORD`, `DB_NAME` in `.env` match the `POSTGRES_*` values used by the `db` service in `docker-compose.hostinger.yml`.
 
-**Frontend shows “network error” or wrong API**
+**“Mixed Content” or “requested an insecure XMLHttpRequest” blocked**
 
-- Set `NEXT_PUBLIC_API_URL` in `.env` to the URL the **browser** uses to reach the API (e.g. `http://YOUR_VPS_IP:5001` or `https://api.yourdomain.com`).
-- Rebuild the web service after changing `.env`:  
-  `docker compose -f docker-compose.hostinger.yml up -d --build web`
+- If the site is served over **HTTPS** (e.g. `https://awoof.tech`), the browser will **block** requests to **HTTP** URLs (e.g. `http://82.29.190.219:5001`). You must use an **HTTPS** API URL.
+- **Fix:** Set up the API on a domain with SSL (e.g. `api.awoof.tech`) as in the “Custom domain and HTTPS” section above, set `NEXT_PUBLIC_API_URL=https://api.awoof.tech` in `~/awoof/.env`, then rebuild the web image and redeploy.
+
+**Frontend shows “network error” or wrong API / still calls localhost**
+
+- `NEXT_PUBLIC_API_URL` is **baked into the frontend at build time** (Next.js inlines it). Changing `.env` only takes effect after the **web image is rebuilt**.
+- On the VPS, set `NEXT_PUBLIC_API_URL` in `~/awoof/.env` (e.g. `http://82.29.190.219:5001` or `https://api.awoof.tech`). Then rebuild so the new value is used:
+  - `cd ~/awoof && docker compose -f docker-compose.hostinger.yml build --no-cache web && docker compose -f docker-compose.hostinger.yml up -d`
+- Use `--no-cache` if a previous build had the wrong value (otherwise Docker may reuse the old cached layer with localhost).
+- When using `deploy-to-vps.sh`, the build runs on the VPS and reads `~/awoof/.env`; ensure that file exists and contains `NEXT_PUBLIC_API_URL` **before** you deploy.
 
 **Port already in use**
 
@@ -284,9 +425,10 @@ A workflow in `.github/workflows/deploy.yml` deploys to your VPS when you push t
 2. Install Docker if needed; clone the repo.
 3. Copy `env.deployment.example` to `.env` and set secrets and URLs.
 4. Run `docker compose -f docker-compose.hostinger.yml up -d --build`.
-5. Run migrations: `docker exec awoof-backend npm run db:migrate`.
-6. Open ports 3000 and 5001 (and 22 for SSH).
-7. Use `http://YOUR_VPS_IP:3000` and `http://YOUR_VPS_IP:5001` (or your domain with Nginx + SSL).
+5. Run migrations: `docker exec awoof-backend npm run db:migrate:prod`.
+6. Create an admin: `docker compose -f docker-compose.hostinger.yml exec backend node dist/scripts/create-admin.js admin@awoof.tech 'YourPassword'`.
+7. Open ports 3000 and 5001 (and 22 for SSH).
+8. Use `http://YOUR_VPS_IP:3000` and `http://YOUR_VPS_IP:5001` (or your domain with Nginx + SSL).
 
 For more on Hostinger and Docker:
 

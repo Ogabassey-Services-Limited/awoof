@@ -7,6 +7,8 @@ services:
     build:
       context: ./apps/web
       dockerfile: Dockerfile.prod
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5001}
     ports:
       - "3000:3000"
     environment:
@@ -75,7 +77,7 @@ services:
     image: redis:7-alpine
     restart: always
     ports:
-      - "6380:6379"  # host 6380 to avoid conflict with existing Redis on 6379
+      - "6380:6379" # host 6380 to avoid conflict with existing Redis on 6379
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes

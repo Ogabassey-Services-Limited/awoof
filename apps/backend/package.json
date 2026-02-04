@@ -7,16 +7,18 @@
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "npx tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "lint": "eslint src --ext .ts",
     "type-check": "tsc --noEmit",
-    "db:migrate": "tsx src/database/migrations/run.ts",
-    "admin:create:docker": "tsx src/scripts/create-admin-docker.ts"
+    "db:migrate": "./node_modules/.bin/tsx src/database/migrations/run.ts",
+    "db:migrate:prod": "node dist/database/migrations/run.js",
+    "admin:create": "tsx src/scripts/create-admin.ts",
+    "admin:set-password": "tsx src/scripts/set-admin-password.ts"
   },
   "devDependencies": {
-    "@types/bcrypt": "^5.0.2",
+    "@types/bcryptjs": "^2.4.6",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/jsonwebtoken": "^9.0.7",
@@ -35,7 +37,7 @@
     "@types/swagger-ui-express": "^4.1.8",
     "@types/uuid": "^10.0.0",
     "axios": "^1.13.1",
-    "bcrypt": "^5.1.1",
+    "bcryptjs": "^2.4.3",
     "bullmq": "^5.25.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",

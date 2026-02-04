@@ -141,3 +141,34 @@ export const sendEmailVerificationOTP = async (
     return await sendEmail(email, subject, html);
 };
 
+/**
+ * Send welcome email after successful student registration
+ */
+export const sendWelcomeEmail = async (
+    email: string,
+    name?: string
+): Promise<{ success: boolean; messageId?: string; error?: string }> => {
+    const greeting = name ? `Hello ${name},` : 'Hello,';
+    const subject = 'Welcome to Awoof!';
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background-color: #1D4ED8; padding: 20px; text-align: center;">
+                <h1 style="color: #FFFFFF; margin: 0;">Awoof</h1>
+            </div>
+            <div style="padding: 30px; background-color: #f9f9f9;">
+                <h2 style="color: #1D4ED8;">Welcome to Awoof!</h2>
+                <p>${greeting}</p>
+                <p>Your student account has been created successfully. You can now access exclusive discounts on food, tech, and travel.</p>
+                <p><a href="${frontendUrl}/marketplace" style="background-color: #1D4ED8; color: #FFFFFF; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">Explore Marketplace</a></p>
+                <p>If you have any questions, feel free to reach out to our support team.</p>
+            </div>
+            <div style="background-color: #1D4ED8; padding: 20px; text-align: center; color: #FFFFFF;">
+                <p style="margin: 0;">© 2025 Awoof. All rights reserved.</p>
+            </div>
+        </div>
+    `;
+
+    return await sendEmail(email, subject, html);
+};
+

@@ -5,11 +5,11 @@
  * Follows Single Responsibility Principle - only handles password operations
  */
 
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 
 /**
  * Password Service
- * Handles password hashing and comparison
+ * Handles password hashing and comparison (bcryptjs = pure JS, no native build)
  */
 class PasswordService {
     private readonly saltRounds = 12;
@@ -18,7 +18,7 @@ class PasswordService {
      * Hash a password
      */
     public async hashPassword(password: string): Promise<string> {
-        return bcrypt.hash(password, this.saltRounds);
+        return Promise.resolve(bcrypt.hashSync(password, this.saltRounds));
     }
 
     /**
@@ -28,7 +28,7 @@ class PasswordService {
         password: string,
         hash: string
     ): Promise<boolean> {
-        return bcrypt.compare(password, hash);
+        return Promise.resolve(bcrypt.compareSync(password, hash));
     }
 
     /**

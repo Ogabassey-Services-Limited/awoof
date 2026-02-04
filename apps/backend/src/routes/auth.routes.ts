@@ -187,5 +187,25 @@ router.post(
     asyncHandler(authController.verifyStudentEmail.bind(authController))
 );
 
+/**
+ * @route   POST /api/auth/student/register-request
+ * @desc    Request OTP for student signup (validates email domain, no user created)
+ * @access  Public
+ */
+router.post(
+    '/student/register-request',
+    asyncHandler(authController.studentRegisterRequest.bind(authController))
+);
+
+/**
+ * @route   POST /api/auth/student/register-confirm
+ * @desc    Confirm OTP and create student account
+ * @access  Public
+ */
+router.post(
+    '/student/register-confirm',
+    asyncHandler(authController.studentRegisterConfirm.bind(authController))
+);
+
 export default router;
 

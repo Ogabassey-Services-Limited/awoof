@@ -1,34 +1,26 @@
 /**
  * University Select Component with Type-to-Search
- * 
- * Provides autocomplete functionality for selecting universities
+ *
+ * Fetches universities from GET /api/universities and filters by name or shortcode
  */
 
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import apiClient from '@/lib/api-client';
 
 interface University {
     id: string;
     name: string;
     domain?: string;
+    shortcode?: string;
     country?: string;
 }
 
-// Dummy array of Nigerian universities
-// Using UUID format to match backend validation
-const NIGERIAN_UNIVERSITIES: University[] = [
-    { id: '550e8400-e29b-41d4-a716-446655440000', name: 'University of Lagos', domain: 'unilag.edu.ng', country: 'Nigeria' },
-    { id: '550e8400-e29b-41d4-a716-446655440001', name: 'University of Ibadan', domain: 'ui.edu.ng', country: 'Nigeria' },
-    { id: '550e8400-e29b-41d4-a716-446655440002', name: 'Ahmadu Bello University', domain: 'abu.edu.ng', country: 'Nigeria' },
-    { id: '550e8400-e29b-41d4-a716-446655440003', name: 'University of Nigeria, Nsukka', domain: 'unn.edu.ng', country: 'Nigeria' },
-    { id: '550e8400-e29b-41d4-a716-446655440004', name: 'Obafemi Awolowo University', domain: 'oauife.edu.ng', country: 'Nigeria' },
-];
-
 interface UniversitySelectProps {
-    value?: string; // University ID
+    value?: string;
     onChange: (universityId: string | null, university: University | null) => void;
     error?: string;
     required?: boolean;
@@ -40,15 +32,49 @@ export function UniversitySelect({
     error,
     required = false,
 }: UniversitySelectProps) {
+    const [universities, setUniversities] = useState<University[]>([]);
+    const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [filteredUniversities, setFilteredUniversities] = useState<University[]>([]);
     const [selectedUniversity, setSelectedUniversity] = useState<University | null>(null);
     const [isOpen, setIsOpen] = useState(false);
     const [showNotFoundMessage, setShowNotFoundMessage] = useState(false);
+    const [fetchError, setFetchError] = useState<string | null>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    // Filter universities based on search term
+    const fetchUniversities = useCallback(async () => {
+        try {
+            setLoading(true);
+            setFetchError(null);
+            const res = await apiClient.get('/universities');
+            const raw = res.data?.data?.universities ?? res.data?.universities ?? [];
+            const list = Array.isArray(raw)
+                ? raw.map((u: Record<string, unknown>) => ({
+                    id: String(u.id ?? ''),
+                    name: String(u.name ?? ''),
+                    domain: u.domain != null ? String(u.domain) : undefined,
+                    shortcode: u.shortcode != null ? String(u.shortcode) : undefined,
+                    country: u.country != null ? String(u.country) : undefined,
+                }))
+                : [];
+            setUniversities(list);
+        } catch (err: unknown) {
+            setUniversities([]);
+            const message =
+                (err as { response?: { status?: number } })?.response?.status === 404
+                    ? 'Universities API not found. Is the backend running?'
+                    : 'Could not load universities. Check your connection and try again.';
+            setFetchError(message);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchUniversities();
+    }, [fetchUniversities]);
+
     useEffect(() => {
         if (searchTerm.length < 1) {
             setFilteredUniversities([]);
@@ -57,19 +83,22 @@ export function UniversitySelect({
             return;
         }
 
-        const filtered = NIGERIAN_UNIVERSITIES.filter((uni) =>
-            uni.name.toLowerCase().includes(searchTerm.toLowerCase())
+        const term = searchTerm.toLowerCase().trim();
+        const filtered = universities.filter(
+            (uni) =>
+                (uni.name ?? '').toLowerCase().includes(term) ||
+                (uni.shortcode ?? '').toLowerCase().includes(term) ||
+                (uni.domain ?? '').toLowerCase().includes(term)
         );
 
         setFilteredUniversities(filtered);
         setIsOpen(filtered.length > 0);
         setShowNotFoundMessage(filtered.length === 0 && searchTerm.length > 0);
-    }, [searchTerm]);
+    }, [searchTerm, universities]);
 
-    // Load selected university when value changes
     useEffect(() => {
         if (value && selectedUniversity?.id !== value) {
-            const university = NIGERIAN_UNIVERSITIES.find((u) => u.id === value);
+            const university = universities.find((u) => u.id === value);
             if (university) {
                 setSelectedUniversity(university);
                 setSearchTerm(university.name);
@@ -78,9 +107,8 @@ export function UniversitySelect({
             setSelectedUniversity(null);
             setSearchTerm('');
         }
-    }, [value, selectedUniversity]);
+    }, [value, selectedUniversity, universities]);
 
-    // Close dropdown when clicking outside and clear if no valid selection
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (
@@ -91,12 +119,10 @@ export function UniversitySelect({
             ) {
                 setIsOpen(false);
                 setShowNotFoundMessage(false);
-                // Clear input if no valid selection was made
                 if (!selectedUniversity) {
                     setSearchTerm('');
                     onChange(null, null);
                 } else {
-                    // Reset to selected university name
                     setSearchTerm(selectedUniversity.name);
                 }
             }
@@ -116,8 +142,7 @@ export function UniversitySelect({
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newValue = e.target.value;
         setSearchTerm(newValue);
-        setShowNotFoundMessage(false); // Hide not found message when typing
-        // Clear selection if user is typing something different
+        setShowNotFoundMessage(false);
         if (selectedUniversity && newValue !== selectedUniversity.name) {
             setSelectedUniversity(null);
             onChange(null, null);
@@ -125,13 +150,7 @@ export function UniversitySelect({
     };
 
     const handleInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-        // Don't clear if clicking on dropdown
-        if (dropdownRef.current?.contains(e.relatedTarget as Node)) {
-            return;
-        }
-
-        // If no valid selection, clear the input after a short delay
-        // This allows time for the dropdown click to register
+        if (dropdownRef.current?.contains(e.relatedTarget as Node)) return;
         setTimeout(() => {
             if (!selectedUniversity && searchTerm) {
                 setSearchTerm('');
@@ -154,7 +173,7 @@ export function UniversitySelect({
                 {required ? (
                     <span className="text-red-500 ml-1">*</span>
                 ) : (
-                    <span className="text-gray-400 ml-1 text-xs">(Optional - can be added later)</span>
+                    <span className="text-gray-400 ml-1 text-xs">(Optional)</span>
                 )}
             </Label>
             <div className="relative">
@@ -162,7 +181,7 @@ export function UniversitySelect({
                     ref={inputRef}
                     id="university"
                     type="text"
-                    placeholder="Type to search for your university..."
+                    placeholder={loading ? 'Loading universities...' : 'Type to search by name or shortcode...'}
                     value={searchTerm}
                     onChange={handleInputChange}
                     onFocus={handleInputFocus}
@@ -171,6 +190,7 @@ export function UniversitySelect({
                     aria-invalid={error ? 'true' : 'false'}
                     aria-autocomplete="list"
                     aria-expanded={isOpen}
+                    disabled={loading}
                 />
                 {isOpen && filteredUniversities.length > 0 && (
                     <div
@@ -182,38 +202,42 @@ export function UniversitySelect({
                                 key={university.id}
                                 type="button"
                                 onMouseDown={(e) => {
-                                    e.preventDefault(); // Prevent input blur
+                                    e.preventDefault();
                                     handleSelect(university);
                                 }}
                                 className="w-full text-left px-4 py-2 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none transition-colors"
                             >
                                 <div className="font-medium">{university.name}</div>
-                                {university.country && (
-                                    <div className="text-sm text-gray-500">{university.country}</div>
+                                {(university.shortcode || university.country) && (
+                                    <div className="text-sm text-gray-500">
+                                        {[university.shortcode, university.country].filter(Boolean).join(' • ')}
+                                    </div>
                                 )}
                             </button>
                         ))}
                     </div>
                 )}
-                {showNotFoundMessage && (
-                    <div className="absolute z-50 w-full mt-1 bg-white border border-red-200 rounded-md shadow-lg p-4 text-sm text-red-600">
-                        University not covered on awoof portal
+                {showNotFoundMessage && !fetchError && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-md shadow-lg p-4 text-sm text-slate-600">
+                        University not covered on Awoof portal
                     </div>
                 )}
             </div>
-            {error && (
-                <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
-                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                        <path
-                            fillRule="evenodd"
-                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                            clipRule="evenodd"
-                        />
-                    </svg>
-                    {error}
+            {fetchError && (
+                <p className="mt-1 text-sm text-red-600 flex items-center gap-2">
+                    {fetchError}
+                    <button
+                        type="button"
+                        onClick={() => fetchUniversities()}
+                        className="text-sm underline hover:no-underline"
+                    >
+                        Retry
+                    </button>
                 </p>
+            )}
+            {error && (
+                <p className="mt-1 text-sm text-red-600 flex items-center gap-1">{error}</p>
             )}
         </div>
     );
 }
-

@@ -52,6 +52,27 @@ export const upload = multer({
     },
 });
 
+// CSV upload for admin university import (in-memory, max 2MB)
+const csvFileFilter = (_req: Express.Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+    const allowedMimes = [
+        'text/csv',
+        'application/csv',
+        'text/plain',
+        'application/vnd.ms-excel',
+    ];
+    if (allowedMimes.includes(file.mimetype) || file.originalname?.toLowerCase().endsWith('.csv')) {
+        cb(null, true);
+    } else {
+        cb(new Error('Invalid file type. Only CSV files are allowed.'));
+    }
+};
+
+export const csvUpload = multer({
+    storage: multer.memoryStorage(),
+    fileFilter: csvFileFilter,
+    limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
+});
+
 // Helper to get file URL
 // Returns relative path - frontend should construct full URL using NEXT_PUBLIC_API_URL
 export function getFileUrl(filename: string): string {

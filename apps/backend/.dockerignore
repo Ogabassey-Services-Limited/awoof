@@ -3,8 +3,6 @@ node_modules/
 # Build outputs
 dist/
 build/
-# Source files not needed in the final image (if using multi-stage builds)
-# src/
 # Configuration files
 .env
 .env.*
@@ -18,15 +16,11 @@ yarn-error.log*
 # Version control
 .git/
 .gitignore
-# Dev-only Docker (Dockerfile.prod needed for production builds)
 Dockerfile.dev
 docker-compose*.yml
-# Testing files
 coverage/
 *.test.ts
 *.spec.ts
-# Dev-only scripts (not for production image)
 src/scripts/clear-test-accounts.ts
-src/scripts/create-admin.ts
 src/database/migrations/test-redis.ts
 src/database/migrations/clear_test_data.sql

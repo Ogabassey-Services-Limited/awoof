@@ -30,36 +30,43 @@ export class UniversityController {
                 country,
                 portal_url,
                 database_api_url,
+                shortcode,
+                segment,
+                COALESCE(email_domains, '[]'::jsonb) AS email_domains,
                 is_active,
                 created_at
             FROM universities
             WHERE is_active = true
         `;
-        const params: any[] = [];
+        const params: unknown[] = [];
         let paramCount = 1;
 
-        // Add filters
         if (country) {
             query += ` AND country = $${paramCount++}`;
             params.push(country);
         }
 
         if (search) {
-            query += ` AND (name ILIKE $${paramCount++} OR domain ILIKE $${paramCount})`;
-            params.push(`%${search}%`, `%${search}%`);
+            const pattern = `%${search}%`;
+            query += ` AND (name ILIKE $${paramCount} OR domain ILIKE $${paramCount} OR shortcode ILIKE $${paramCount})`;
+            params.push(pattern);
+            paramCount++;
         }
 
         query += ` ORDER BY name ASC`;
 
         const result = await db.query(query, params);
 
-        const universities = result.rows.map(u => ({
+        const universities = result.rows.map((u: Record<string, unknown>) => ({
             id: u.id,
             name: u.name,
             domain: u.domain,
             country: u.country,
             portalUrl: u.portal_url,
             databaseApiUrl: u.database_api_url,
+            shortcode: u.shortcode,
+            segment: u.segment,
+            emailDomains: u.email_domains || [],
             isActive: u.is_active,
             createdAt: u.created_at,
         }));

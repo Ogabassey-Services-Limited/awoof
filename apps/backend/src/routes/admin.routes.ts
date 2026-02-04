@@ -9,12 +9,24 @@ import { asyncHandler } from '../common/middleware/errorHandler.js';
 import { authenticate } from '../middleware/auth.middleware.js';
 import { requireRole } from '../middleware/auth.middleware.js';
 import { adminController } from '../controllers/admin.controller.js';
+import { adminUniversityController } from '../controllers/admin-university.controller.js';
+import { csvUpload } from '../config/upload.js';
 
 const router = Router();
 
 // All admin routes require authentication and admin role
 router.use(authenticate);
 router.use(requireRole('admin'));
+
+// Admin universities - order matters: segment-stats and csv-sample before :id
+router.get('/universities', asyncHandler(adminUniversityController.getUniversities.bind(adminUniversityController)));
+router.get('/universities/segment-stats', asyncHandler(adminUniversityController.getSegmentStats.bind(adminUniversityController)));
+router.get('/universities/csv-sample', asyncHandler(adminUniversityController.getCsvSample.bind(adminUniversityController)));
+router.post('/universities/import-csv', csvUpload.single('file'), asyncHandler(adminUniversityController.importCsv.bind(adminUniversityController)));
+router.get('/universities/:id', asyncHandler(adminUniversityController.getUniversity.bind(adminUniversityController)));
+router.post('/universities', asyncHandler(adminUniversityController.createUniversity.bind(adminUniversityController)));
+router.put('/universities/:id', asyncHandler(adminUniversityController.updateUniversity.bind(adminUniversityController)));
+router.delete('/universities/:id', asyncHandler(adminUniversityController.deleteUniversity.bind(adminUniversityController)));
 
 /**
  * @route   GET /api/admin/categories

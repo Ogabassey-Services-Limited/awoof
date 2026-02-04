@@ -74,18 +74,19 @@ export class VerificationController {
      * Get available verification methods for a university
      */
     public async getVerificationMethods(req: Request, res: Response): Promise<void> {
-        const { universityId } = req.params;
+        const universityId = req.params.universityId;
+        const id = typeof universityId === 'string' ? universityId : universityId?.[0];
 
-        if (!universityId) {
+        if (!id) {
             throw new BadRequestError('University ID is required');
         }
 
-        const methods = await getAvailableVerificationMethods(universityId);
+        const methods = await getAvailableVerificationMethods(id);
 
         success(res, {
             message: 'Verification methods retrieved successfully',
             data: {
-                universityId,
+                universityId: id,
                 methods,
             },
         });
@@ -637,7 +638,8 @@ export class VerificationController {
      * Get verification status
      */
     public async getVerificationStatus(req: Request, res: Response): Promise<void> {
-        const { studentId } = req.params;
+        const studentIdParam = req.params.studentId;
+        const studentId = typeof studentIdParam === 'string' ? studentIdParam : studentIdParam?.[0];
 
         if (!studentId) {
             throw new BadRequestError('Student ID is required');
