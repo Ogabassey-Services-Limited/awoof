@@ -1,0 +1,240 @@
+/**
+ * Admin Settings & Profile
+ *
+ * Profile info (from /auth/me) and change password (/auth/update-password).
+ */
+
+'use client';
+
+import { useState, useEffect } from 'react';
+import { User, Lock, Save } from 'lucide-react';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import { useAuth } from '@/contexts/AuthContext';
+import { DashboardLayout } from '@/components/dashboard';
+import type { User as AuthUser } from '@/lib/auth';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import apiClient from '@/lib/api-client';
+import { primaryNavItems, secondaryNavItems } from '../adminNav';
+
+interface MeData {
+    id: string;
+    email: string;
+    role: string;
+    verificationStatus?: string;
+    profile?: unknown;
+}
+
+type TabId = 'profile' | 'password';
+
+export default function AdminSettingsPage() {
+    const { user, logout } = useAuth();
+    const [activeTab, setActiveTab] = useState<TabId>('profile');
+    const [me, setMe] = useState<MeData | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [success, setSuccess] = useState<string | null>(null);
+
+    // Password form
+    const [currentPassword, setCurrentPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [savingPassword, setSavingPassword] = useState(false);
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                setLoading(true);
+                setError(null);
+                const res = await apiClient.get('/auth/me');
+                if (!cancelled) setMe(res.data.data ?? null);
+            } catch (e) {
+                if (!cancelled) {
+                    setError('Failed to load profile');
+                    setMe(null);
+                }
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    const handleLogout = async () => {
+        await logout();
+    };
+
+    const handleChangePassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError(null);
+        setSuccess(null);
+        if (newPassword !== confirmPassword) {
+            setError('New password and confirmation do not match');
+            return;
+        }
+        if (newPassword.length < 8) {
+            setError('New password must be at least 8 characters');
+            return;
+        }
+        setSavingPassword(true);
+        try {
+            await apiClient.post('/auth/update-password', {
+                oldPassword: currentPassword,
+                newPassword,
+            });
+            setSuccess('Password updated successfully.');
+            setCurrentPassword('');
+            setNewPassword('');
+            setConfirmPassword('');
+        } catch (err: unknown) {
+            const ax = err as { response?: { data?: { error?: { message?: string } } } };
+            setError(ax.response?.data?.error?.message ?? 'Failed to update password');
+        } finally {
+            setSavingPassword(false);
+        }
+    };
+
+    if (loading) {
+        return (
+            <ProtectedRoute requiredRole="admin">
+                <DashboardLayout
+                    navItems={primaryNavItems}
+                    secondaryNavItems={secondaryNavItems}
+                    pageTitle="Settings"
+                    user={user as AuthUser}
+                    onLogout={handleLogout}
+                    logoutLabel="Logout"
+                >
+                    <p className="text-slate-500">Loading settings...</p>
+                </DashboardLayout>
+            </ProtectedRoute>
+        );
+    }
+
+    return (
+        <ProtectedRoute requiredRole="admin">
+            <DashboardLayout
+                navItems={primaryNavItems}
+                secondaryNavItems={secondaryNavItems}
+                pageTitle="Settings"
+                user={user as AuthUser}
+                onLogout={handleLogout}
+                logoutLabel="Logout"
+            >
+                <div className="space-y-6">
+                    {/* Tabs */}
+                    <div className="border-b border-slate-200">
+                        <nav className="-mb-px flex gap-6">
+                            <button
+                                type="button"
+                                onClick={() => { setActiveTab('profile'); setError(null); setSuccess(null); }}
+                                className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${activeTab === 'profile'
+                                        ? 'border-slate-900 text-slate-900'
+                                        : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
+                                    }`}
+                            >
+                                <User className="mr-2 inline h-4 w-4" />
+                                Profile
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => { setActiveTab('password'); setError(null); setSuccess(null); }}
+                                className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${activeTab === 'password'
+                                        ? 'border-slate-900 text-slate-900'
+                                        : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
+                                    }`}
+                            >
+                                <Lock className="mr-2 inline h-4 w-4" />
+                                Password
+                            </button>
+                        </nav>
+                    </div>
+
+                    {error && (
+                        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                            {error}
+                        </div>
+                    )}
+                    {success && (
+                        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                            {success}
+                        </div>
+                    )}
+
+                    {activeTab === 'profile' && (
+                        <div className="rounded-lg bg-white p-6 shadow-sm">
+                            <h2 className="text-lg font-semibold text-slate-900">Profile</h2>
+                            <p className="mt-1 text-sm text-slate-500">Your admin account details (from /auth/me).</p>
+                            <dl className="mt-6 grid gap-4 sm:grid-cols-1">
+                                <div>
+                                    <Label className="text-slate-600">Email</Label>
+                                    <p className="mt-1 text-slate-900">{me?.email ?? '—'}</p>
+                                </div>
+                                <div>
+                                    <Label className="text-slate-600">Role</Label>
+                                    <p className="mt-1 capitalize text-slate-900">{me?.role ?? '—'}</p>
+                                </div>
+                            </dl>
+                        </div>
+                    )}
+
+                    {activeTab === 'password' && (
+                        <div className="rounded-lg bg-white p-6 shadow-sm">
+                            <h2 className="text-lg font-semibold text-slate-900">Change password</h2>
+                            <p className="mt-1 text-sm text-slate-500">Update your password. You will need your current password.</p>
+                            <form onSubmit={handleChangePassword} className="mt-6 max-w-md space-y-4">
+                                <div>
+                                    <Label htmlFor="current-password">Current password</Label>
+                                    <Input
+                                        id="current-password"
+                                        type="password"
+                                        autoComplete="current-password"
+                                        value={currentPassword}
+                                        onChange={(e) => setCurrentPassword(e.target.value)}
+                                        className="mt-1"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <Label htmlFor="new-password">New password</Label>
+                                    <Input
+                                        id="new-password"
+                                        type="password"
+                                        autoComplete="new-password"
+                                        value={newPassword}
+                                        onChange={(e) => setNewPassword(e.target.value)}
+                                        className="mt-1"
+                                        minLength={8}
+                                        required
+                                    />
+                                    <p className="mt-1 text-xs text-slate-500">At least 8 characters.</p>
+                                </div>
+                                <div>
+                                    <Label htmlFor="confirm-password">Confirm new password</Label>
+                                    <Input
+                                        id="confirm-password"
+                                        type="password"
+                                        autoComplete="new-password"
+                                        value={confirmPassword}
+                                        onChange={(e) => setConfirmPassword(e.target.value)}
+                                        className="mt-1"
+                                        minLength={8}
+                                        required
+                                    />
+                                </div>
+                                <Button type="submit" disabled={savingPassword}>
+                                    <Save className="mr-2 h-4 w-4" />
+                                    {savingPassword ? 'Updating…' : 'Update password'}
+                                </Button>
+                            </form>
+                        </div>
+                    )}
+                </div>
+            </DashboardLayout>
+        </ProtectedRoute>
+    );
+}
