@@ -7,7 +7,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { LayoutDashboard, GraduationCap, Plus, Edit2, Trash2, Settings, Upload, Download } from 'lucide-react';
+import { GraduationCap, Plus, Edit2, Trash2, Download } from 'lucide-react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
 import { DashboardLayout } from '@/components/dashboard';
@@ -16,20 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import apiClient from '@/lib/api-client';
-
-const iconProps = { className: 'h-5 w-5', strokeWidth: 1.5, fill: 'currentColor' as const };
-
-const primaryNavItems = [
-    { id: 'dashboard', label: 'Dashboard', href: '/admin/dashboard', icon: <LayoutDashboard {...iconProps} /> },
-    { id: 'categories', label: 'Categories', href: '/admin/categories', icon: <Tag {...iconProps} /> },
-    { id: 'universities', label: 'Universities', href: '/admin/universities', icon: <GraduationCap {...iconProps} /> },
-];
-
-const secondaryNavItems = [
-    { id: 'settings', label: 'Settings', href: '/admin/settings', icon: <Settings {...iconProps} /> },
-];
-
-import { Tag } from 'lucide-react';
+import { primaryNavItems, secondaryNavItems } from '../adminNav';
 
 interface University {
     id: string;
@@ -219,16 +206,10 @@ export default function AdminUniversitiesPage() {
                 onLogout={handleLogout}
                 logoutLabel="Logout"
                 topbarActions={
-                    <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={handleDownloadSample}>
-                            <Download className="mr-2 h-4 w-4" />
-                            Sample CSV
-                        </Button>
-                        <Button onClick={() => handleOpenModal()}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Add University
-                        </Button>
-                    </div>
+                    <Button onClick={() => handleOpenModal()}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add University
+                    </Button>
                 }
             >
                 <div className="space-y-6">
@@ -247,17 +228,26 @@ export default function AdminUniversitiesPage() {
                     {/* CSV import */}
                     <div className="rounded-lg bg-white p-4 shadow-sm">
                         <h3 className="text-sm font-medium text-slate-900 mb-2">Import from CSV</h3>
-                        <form onSubmit={handleImportCsv} className="flex gap-3 items-end">
-                            <input
-                                type="file"
-                                accept=".csv"
-                                onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
-                                className="text-sm"
-                            />
-                            <Button type="submit" disabled={!csvFile || importing}>
-                                {importing ? 'Importing...' : 'Import'}
+                        <p className="text-sm text-slate-600 mb-3">
+                            Download the sample to see the expected columns (name, domain, email_domains, segment, country).
+                        </p>
+                        <div className="flex flex-wrap gap-3 items-center">
+                            <Button type="button" variant="outline" size="sm" onClick={handleDownloadSample}>
+                                <Download className="mr-2 h-4 w-4" />
+                                Download sample CSV
                             </Button>
-                        </form>
+                            <form onSubmit={handleImportCsv} className="flex gap-3 items-center">
+                                <input
+                                    type="file"
+                                    accept=".csv"
+                                    onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+                                    className="text-sm"
+                                />
+                                <Button type="submit" disabled={!csvFile || importing}>
+                                    {importing ? 'Importing...' : 'Import'}
+                                </Button>
+                            </form>
+                        </div>
                     </div>
 
                     {/* Search */}

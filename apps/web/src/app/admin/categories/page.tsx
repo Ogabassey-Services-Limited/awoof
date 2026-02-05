@@ -5,7 +5,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { LayoutDashboard, Tag, Plus, Edit2, Trash2, Settings } from 'lucide-react';
+import { Tag, Plus, Edit2, Trash2 } from 'lucide-react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
 import { DashboardLayout } from '@/components/dashboard';
@@ -14,17 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import apiClient from '@/lib/api-client';
-
-const iconProps = { className: 'h-5 w-5', strokeWidth: 1.5, fill: 'currentColor' as const };
-
-const primaryNavItems = [
-    { id: 'dashboard', label: 'Dashboard', href: '/admin/dashboard', icon: <LayoutDashboard {...iconProps} /> },
-    { id: 'categories', label: 'Categories', href: '/admin/categories', icon: <Tag {...iconProps} /> },
-];
-
-const secondaryNavItems = [
-    { id: 'settings', label: 'Settings', href: '/admin/settings', icon: <Settings {...iconProps} /> },
-];
+import { primaryNavItems, secondaryNavItems } from '../adminNav';
 
 interface Category {
     id: string;

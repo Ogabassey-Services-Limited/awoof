@@ -10,6 +10,7 @@ import { authenticate } from '../middleware/auth.middleware.js';
 import { requireRole } from '../middleware/auth.middleware.js';
 import { adminController } from '../controllers/admin.controller.js';
 import { adminUniversityController } from '../controllers/admin-university.controller.js';
+import { adminStudentController } from '../controllers/admin-student.controller.js';
 import { csvUpload } from '../config/upload.js';
 
 const router = Router();
@@ -27,6 +28,8 @@ router.get('/universities/:id', asyncHandler(adminUniversityController.getUniver
 router.post('/universities', asyncHandler(adminUniversityController.createUniversity.bind(adminUniversityController)));
 router.put('/universities/:id', asyncHandler(adminUniversityController.updateUniversity.bind(adminUniversityController)));
 router.delete('/universities/:id', asyncHandler(adminUniversityController.deleteUniversity.bind(adminUniversityController)));
+
+router.get('/students', asyncHandler(adminStudentController.getStudents.bind(adminStudentController)));
 
 /**
  * @route   GET /api/admin/categories

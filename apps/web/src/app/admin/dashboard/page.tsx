@@ -4,28 +4,14 @@
 
 'use client';
 
-import { LayoutDashboard, Users, ShoppingBag, Tag, Settings, BarChart3, GraduationCap } from 'lucide-react';
+import { Users, ShoppingBag, Tag, BarChart3, GraduationCap } from 'lucide-react';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
 import { DashboardLayout } from '@/components/dashboard';
 import type { User } from '@/lib/auth';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-
-const iconProps = { className: 'h-5 w-5', strokeWidth: 1.5, fill: 'currentColor' as const };
-
-const primaryNavItems = [
-    { id: 'dashboard', label: 'Dashboard', href: '/admin/dashboard', icon: <LayoutDashboard {...iconProps} /> },
-    { id: 'categories', label: 'Categories', href: '/admin/categories', icon: <Tag {...iconProps} /> },
-    { id: 'universities', label: 'Universities', href: '/admin/universities', icon: <GraduationCap {...iconProps} /> },
-    { id: 'students', label: 'Students', href: '/admin/students', icon: <Users {...iconProps} /> },
-    { id: 'vendors', label: 'Vendors', href: '/admin/vendors', icon: <ShoppingBag {...iconProps} /> },
-    { id: 'analytics', label: 'Analytics', href: '/admin/analytics', icon: <BarChart3 {...iconProps} /> },
-];
-
-const secondaryNavItems = [
-    { id: 'settings', label: 'Settings', href: '/admin/settings', icon: <Settings {...iconProps} /> },
-];
+import { primaryNavItems, secondaryNavItems } from '../adminNav';
 
 export default function AdminDashboardPage() {
     const { user, logout } = useAuth();
