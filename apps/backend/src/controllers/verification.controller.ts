@@ -135,14 +135,9 @@ export class VerificationController {
      */
     public async verifyEmail(req: Request, res: Response): Promise<void> {
         const { email, universityId } = req.body;
-        const { token } = req.query;
 
         if (!email || !universityId) {
-            // If token provided, verify magic link (validate format before delegating)
-            const tokenStr = typeof token === 'string' ? token.trim() : '';
-            if (tokenStr.length > 0 && tokenStr.length <= 512 && !/[\r\n\x00-\x1f]/.test(tokenStr)) {
-                return this.verifyMagicLink(req, res);
-            }
+            // Magic-link verification is a separate flow: use GET /api/verification/email/verify?token=...
             throw new BadRequestError('Email and university ID are required');
         }
 

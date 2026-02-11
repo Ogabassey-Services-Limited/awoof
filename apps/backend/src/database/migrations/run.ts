@@ -8,7 +8,7 @@
 import { db } from '../../config/database.js';
 import { appLogger } from '../../common/logger.js';
 import { readFileSync, readdirSync } from 'fs';
-import { join, dirname } from 'path';
+import { join, dirname, basename, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -82,22 +82,27 @@ async function recordMigration(filename: string): Promise<void> {
  * Execute a single migration file
  */
 async function executeMigration(filename: string): Promise<void> {
-    // Prevent path traversal: only allow basename (no /, \, or ..)
-    const safeBasename = filename.replace(/\\/g, '/').split('/').pop() ?? filename;
-    if (safeBasename !== filename || /\.\./.test(filename)) {
+    // Prevent path traversal: use only basename and ensure resolved path stays under migrations dir
+    const base = basename(filename);
+    if (base !== filename || filename.includes('..')) {
         throw new Error(`Invalid migration filename: ${filename}`);
     }
-    const filePath = join(__dirname, safeBasename);
-    const sql = readFileSync(filePath, 'utf-8');
+    const filePath = join(__dirname, base);
+    const resolved = resolve(filePath);
+    const migrationsDir = resolve(__dirname);
+    if (!resolved.startsWith(migrationsDir) || resolved === migrationsDir) {
+        throw new Error(`Invalid migration path: ${filename}`);
+    }
+    const sql = readFileSync(resolved, 'utf-8');
 
-    appLogger.info(`📄 Running migration: ${safeBasename}`);
+    appLogger.info(`📄 Running migration: ${base}`);
 
     try {
         await db.query(sql);
-        await recordMigration(safeBasename);
-        appLogger.info(`Migration ${safeBasename} executed successfully`);
+        await recordMigration(base);
+        appLogger.info(`Migration ${base} executed successfully`);
     } catch (error) {
-        appLogger.error(`Migration ${safeBasename} failed:`, error);
+        appLogger.error(`Migration ${base} failed:`, error);
         throw error;
     }
 }

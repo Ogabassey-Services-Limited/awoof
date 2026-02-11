@@ -35,11 +35,13 @@ class App {
    * Initialize middleware
    */
   private initializeMiddlewares(): void {
-    // Security headers (Helmet). API-only: CSP/crossOriginEmbedder disabled to allow cross-origin API requests from frontend.
-    // All other defaults (X-Content-Type-Options, X-Frame-Options, etc.) are enabled.
+    // Security headers (Helmet). API-only: use explicit CSP (CodeQL requires no contentSecurityPolicy: false).
+    // Permissive CSP for JSON API; crossOriginEmbedder off for cross-origin frontend requests.
     this.app.use(
       helmet({
-        contentSecurityPolicy: false,
+        contentSecurityPolicy: {
+          directives: { defaultSrc: ["'self'"], scriptSrc: ["'none'"], objectSrc: ["'none'"], frameAncestors: ["'none'"] },
+        },
         crossOriginEmbedderPolicy: false,
         crossOriginResourcePolicy: { policy: 'cross-origin' },
       })

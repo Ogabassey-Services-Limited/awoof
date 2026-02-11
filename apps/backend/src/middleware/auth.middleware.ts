@@ -18,27 +18,28 @@ export type AuthRequest = Request;
  * Authentication middleware
  * Verifies JWT access token and attaches user to request
  */
+// JWT format: three base64url segments separated by dots; max length 4096
+const JWT_FORMAT = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
+const MAX_TOKEN_LENGTH = 4096;
+
 export const authenticate = (
     req: AuthRequest,
     _res: Response,
     next: NextFunction
 ): void => {
     try {
-        // Get token from Authorization header
         const authHeader = req.headers.authorization;
 
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             throw new UnauthorizedError('No token provided');
         }
 
-        // Extract token
-        const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+        const token = authHeader.substring(7);
 
-        if (!token) {
-            throw new UnauthorizedError('Token is required');
+        if (!token || token.length > MAX_TOKEN_LENGTH || !JWT_FORMAT.test(token)) {
+            throw new UnauthorizedError('Invalid token format');
         }
 
-        // Verify token
         const decoded = jwtService.verifyAccessToken(token);
 
         // Attach user to request (map userId to id for Express compatibility)
@@ -67,13 +68,15 @@ export const optionalAuth = (
 
         if (authHeader && authHeader.startsWith('Bearer ')) {
             const token = authHeader.substring(7);
-            const decoded = jwtService.verifyAccessToken(token);
-            req.user = {
-                ...decoded,
-                id: decoded.userId,
-            };
+            if (token && token.length <= MAX_TOKEN_LENGTH && JWT_FORMAT.test(token)) {
+                const decoded = jwtService.verifyAccessToken(token);
+                req.user = {
+                    ...decoded,
+                    id: decoded.userId,
+                };
+            }
         }
-    } catch (error) {
+    } catch {
         // Ignore errors - authentication is optional
     }
 
