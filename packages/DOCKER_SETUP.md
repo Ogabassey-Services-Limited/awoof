@@ -65,6 +65,27 @@ docker-compose -f docker-compose.dev.yml down
 docker-compose -f docker-compose.dev.yml down -v
 ```
 
+### 7. After dependency updates (e.g. security bumps in package.json)
+
+After changing `package.json` or `package-lock.json` (e.g. bumping Next.js, axios, or adding overrides):
+
+- **Backend:** The dev entrypoint runs `npm install` on every container start, so a **restart** is enough:
+  ```bash
+  cd packages
+  docker-compose -f docker-compose.dev.yml restart backend
+  ```
+- **Web:** The dev entrypoint only runs `npm ci` when `node_modules` is missing or incomplete. To pick up new deps, **rebuild** and recreate the web container (so its `node_modules` volume is refreshed):
+  ```bash
+  cd packages
+  docker-compose -f docker-compose.dev.yml up -d --build web
+  ```
+  If the web container still has old modules, tear down the web service and its anonymous volume, then bring it back up:
+  ```bash
+  docker-compose -f docker-compose.dev.yml stop web
+  docker-compose -f docker-compose.dev.yml rm -f web
+  docker-compose -f docker-compose.dev.yml up -d --build web
+  ```
+
 ## Service Details
 
 ### PostgreSQL (Database)
