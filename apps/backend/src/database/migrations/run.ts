@@ -31,7 +31,8 @@ function getMigrationFiles(): string[] {
     const files = readdirSync(MIGRATIONS_DIR)
         .filter((file): file is string => file.endsWith('.sql'))
         .sort();
-    // nosemgrep: path-join-resolve-traversal -- f is from readdirSync(MIGRATIONS_DIR), not user input
+    // semgrep: files are from readdirSync (filesystem), not user input; path constrained to MIGRATIONS_DIR
+    // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal
     return files.map((f) => resolve(MIGRATIONS_DIR, f));
 }
 

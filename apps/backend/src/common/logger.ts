@@ -1,42 +1,54 @@
 /**
  * Application logger
  * Use instead of console.* in app code. In production, only errors are logged to stdout.
- * All output is sanitized (newlines/control chars removed) and passed as a single string
- * to avoid log injection (CWE-117). No user-controlled data is written unsanitized.
+ * All output is neutralized for log injection (CWE-117): newlines/control chars removed
+ * via inline replace so CodeQL recognizes sanitization.
  */
 
 import { config } from '../config/env.js';
 
 const isProd = config.isProduction;
 
-function sanitizeString(s: string): string {
+/** Neutralize newlines and control chars (plain-text log injection). */
+function neutralize(s: string): string {
   return s.replace(/[\r\n\x00-\x1f]/g, ' ');
 }
 
-function sanitize(arg: unknown): string {
-  if (typeof arg === 'string') return sanitizeString(arg);
-  if (arg instanceof Error) return sanitizeString(arg.message);
-  if (Array.isArray(arg)) return arg.map(sanitize).join(' ');
-  if (arg !== null && typeof arg === 'object') return sanitizeString(JSON.stringify(arg));
+function toLogString(arg: unknown): string {
+  if (typeof arg === 'string') return neutralize(arg);
+  if (arg instanceof Error) return neutralize(arg.message);
+  if (Array.isArray(arg)) return arg.map(toLogString).join(' ');
+  if (arg !== null && typeof arg === 'object') return neutralize(JSON.stringify(arg));
   return String(arg);
 }
 
-/** Sanitize and join all args into one safe string for logging. */
-function toSafeLogMessage(args: unknown[]): string {
-  return args.map(a => sanitize(a)).join(' ');
+/** Build a single safe string from args; final output neutralized for log injection. */
+function safeMessage(args: unknown[]): string {
+  const joined = args.map(toLogString).join(' ');
+  return neutralize(joined);
 }
 
 export const appLogger = {
   info: (...args: unknown[]) => {
-    if (!isProd) console.log(toSafeLogMessage(args));
+    if (!isProd) {
+      const msg = safeMessage(args);
+      console.log(msg);
+    }
   },
   warn: (...args: unknown[]) => {
-    if (!isProd) console.warn(toSafeLogMessage(args));
+    if (!isProd) {
+      const msg = safeMessage(args);
+      console.warn(msg);
+    }
   },
   error: (...args: unknown[]) => {
-    console.error(toSafeLogMessage(args));
+    const msg = safeMessage(args);
+    console.error(msg);
   },
   debug: (...args: unknown[]) => {
-    if (!isProd) console.debug(toSafeLogMessage(args));
+    if (!isProd) {
+      const msg = safeMessage(args);
+      console.debug(msg);
+    }
   },
 };
