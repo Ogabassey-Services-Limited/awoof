@@ -3,12 +3,13 @@ import React from "react";
 
 function Applestore() {
   return (
-    <Button className="flex bg-white text-black rounded-3xl items-center justify-center h-12 px-9 ">
-      <div className="">
+    <Button className="flex bg-white text-black rounded-3xl items-center justify-center min-w-[200px] w-[200px] h-12 py-3 px-5 gap-3">
+      <div className="shrink-0 flex items-center justify-center">
         <svg
           viewBox="0 0 384 512"
-          width="30"
-          className="!w-[38px] !h-[38px]"
+          className="w-8 h-8"
+          fill="currentColor"
+          aria-hidden
         >
           <path
             fill="currentColor"
@@ -16,10 +17,10 @@ function Applestore() {
           />
         </svg>
       </div>
-      <div>
-        <div className="font-semibold text-[12px] leading-[100%] tracking-[0px] font-inter">
-          Download for IOS
-        </div>
+      <div className="min-w-0 text-left">
+        <span className="font-semibold text-xs sm:text-[13px] leading-tight tracking-[0px] font-inter">
+          Download for iOS
+        </span>
       </div>
     </Button>
   );

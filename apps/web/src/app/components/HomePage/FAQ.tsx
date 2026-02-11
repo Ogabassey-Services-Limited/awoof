@@ -31,7 +31,7 @@ function FAQ() {
   ];
 
   return (
-    <div className="flex flex-col justify-center items-center px-4">
+    <div id="faq" className="flex flex-col justify-center items-center px-4 scroll-mt-20">
       <div className="pt-9">
         <p className="inline-block bg-gradient-to-b from-[#CAD5F6] to-[#FFFFFF] bg-clip-text text-transparent font-black text-[10.85vw] leading-tight">
           Frequently Asked

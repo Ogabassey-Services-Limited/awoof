@@ -25,7 +25,7 @@ export default function AboutSteps() {
       <div className="">
         {steps.map((step, index) => (
           <div key={step.number}>
-            <div className="flex gap-4 p-6">
+            <div className="flex gap-3 sm:gap-4 p-4 sm:p-6">
               {/* Step Number Circle */}
               <div className="flex-shrink-0">
                 <div

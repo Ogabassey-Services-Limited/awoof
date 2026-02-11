@@ -3,10 +3,9 @@ import React from "react";
 
 function Googleplaystore() {
   return (
-    // <Button className="flex bg-white text-black rounded-xl items-center justify-center ">
-    <Button  className="flex bg-white text-black rounded-3xl items-center justify-center h-12 px-9 ">
-      <div className="">
-        <svg viewBox="38 336.7 120.9 129.2" width="38" height="38" className="!w-[38px] !h-[38px]">
+    <Button className="flex bg-white text-black rounded-3xl items-center justify-center min-w-[200px] w-[200px] h-12 py-3 px-5 gap-3">
+      <div className="shrink-0 flex items-center justify-center">
+        <svg viewBox="38 336.7 120.9 129.2" className="w-8 h-8" aria-hidden>
           <path
             fill="#FFD400"
             d="M119.2,421.2c15.3-8.4,27-14.8,28-15.3c3.2-1.7,6.5-6.2,0-9.7  c-2.1-1.1-13.4-7.3-28-15.3l-20.1,20.2L119.2,421.2z"
@@ -25,8 +24,8 @@ function Googleplaystore() {
           />
         </svg>
       </div>
-      <div>
-        <div className="font-semibold text-[12px] leading-[100%] tracking-[0px] font-inter">Download for Android</div>
+      <div className="min-w-0 text-left">
+        <span className="font-semibold text-xs sm:text-[13px] leading-tight tracking-[0px] font-inter">Download for Android</span>
       </div>
     </Button>
   );

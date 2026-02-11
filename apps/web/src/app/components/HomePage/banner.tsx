@@ -8,19 +8,18 @@ import SplitText from "@/components/ui/SplitText";
 
 export default function Banner() {
   return (
-    <div className="absolute top-[13vh]">
-      <div className="text-white max-w-[50%] mx-16 my-16 flex flex-col items-center">
-        <div className="font-extrabold text-7xl leading-[95%] tracking-[0.1px] text-center font-inter justify-self-center">
+    <div className="absolute inset-0 flex justify-center items-center px-4 sm:px-6 lg:px-8 pointer-events-none">
+      <div className="text-white w-full max-w-[90%] sm:max-w-[75%] lg:max-w-[50%] mx-auto flex flex-col items-center justify-center text-center pointer-events-auto">
+        <div className="font-extrabold text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl leading-[1.05] tracking-[0.1px] font-inter">
           <motion.div
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.6, delay: 1 }}
           >
-            {" "}
-            Your Student ID Just Got More Powerful{" "}
+            Your Student ID Just Got More Powerful
           </motion.div>
         </div>
-        <div className="m-6 font-bold text-[20px] leading-[147%] tracking-[0.1px] text-center font-inter w-md justify-self-center">
+        <div className="mt-4 sm:mt-6 font-bold text-base sm:text-lg lg:text-[20px] leading-[147%] tracking-[0.1px] font-inter max-w-md">
           <SplitText
             text="Unlock exclusive discounts on food, tech, and travel only for verified students."
             delay={15}
@@ -35,7 +34,12 @@ export default function Banner() {
             textAlign="center"
           />
         </div>
-        <motion.div initial={{ scale: 1.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.5, delay: 2 }} className="flex justify-center space-x-4 max-w-md">
+        <motion.div
+          initial={{ scale: 1.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.5, delay: 2 }}
+          className="flex flex-col sm:flex-row justify-center items-stretch sm:items-center gap-3 sm:gap-4 mt-6 sm:mt-8 max-w-md"
+        >
           <Googleplaystore />
           <Applestore />
         </motion.div>
