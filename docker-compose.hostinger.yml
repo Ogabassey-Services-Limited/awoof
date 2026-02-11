@@ -35,6 +35,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-root}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
@@ -76,11 +77,14 @@ services:
     container_name: awoof-redis
     image: redis:7-alpine
     restart: always
-    ports:
-      - "6380:6379" # host 6380 to avoid conflict with existing Redis on 6379
+    # Do NOT publish Redis to the host. Docker bypasses UFW; exposing 0.0.0.0:6380 allowed
+    # internet access with no auth and led to crypto-miner compromise. Backend connects via
+    # internal network (redis:6379). For CLI debugging from host, use: docker exec -it awoof-redis redis-cli -a $REDIS_PASSWORD
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes
+    command: ["sh", "-c", "redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\""]
 
 volumes:
   db_data:
