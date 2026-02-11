@@ -33,8 +33,7 @@ async function createAdmin() {
 
     const passwordValidation = passwordService.validatePassword(password);
     if (!passwordValidation.valid) {
-        console.error('❌ Password validation failed:');
-        passwordValidation.errors.forEach((e) => console.error(`   - ${e}`));
+        console.error('❌ Password validation failed. Use at least 8 characters with upper, lower, and number.');
         process.exit(1);
     }
 
@@ -53,7 +52,7 @@ async function createAdmin() {
                 await db.close();
                 process.exit(0);
             }
-            console.error(`❌ User ${email} already exists with role: ${roleResult.rows[0].role}`);
+            console.error('❌ A user with this email already exists.');
             await db.close();
             process.exit(1);
         }

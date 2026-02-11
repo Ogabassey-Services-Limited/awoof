@@ -38,7 +38,7 @@ export async function storeOTPInRedis(phoneNumber: string, otp: string): Promise
             throw error;
         }
     } else {
-        console.error(`Redis is not connected. OTP for ${phoneNumber} was not stored.`);
+        console.error('Redis is not connected. OTP was not stored.');
     }
 }
 
@@ -82,7 +82,7 @@ export async function sendWhatsAppOTP(
 
     // Check if WhatsApp API is configured
     if (!config.whatsapp.apiKey || !config.whatsapp.apiUrl) {
-        console.warn(`WhatsApp API not configured. OTP for ${phoneNumber} is ${otpCode} (stored for testing).`);
+        console.warn('WhatsApp API not configured. OTP stored for testing.');
         // Still return success since OTP is stored in Redis and can be retrieved
         return {
             success: true,

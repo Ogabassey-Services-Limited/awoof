@@ -286,7 +286,9 @@ export class AdminUniversityController {
         let inserted = 0;
         let updated = 0;
 
+        const MAX_LINE_LENGTH = 64 * 1024; // 64KB per line to prevent loop-bound DoS
         for (const line of rows) {
+            if (line.length > MAX_LINE_LENGTH) continue;
             const cols = this.parseCsvLine(line);
             if (cols.length < 2) continue;
 

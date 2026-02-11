@@ -35,8 +35,7 @@ async function setAdminPassword() {
 
     const passwordValidation = passwordService.validatePassword(password);
     if (!passwordValidation.valid) {
-        console.error('❌ Password validation failed:');
-        passwordValidation.errors.forEach((e) => console.error(`   - ${e}`));
+        console.error('❌ Password validation failed. Use at least 8 characters with upper, lower, and number.');
         process.exit(1);
     }
 
@@ -49,14 +48,14 @@ async function setAdminPassword() {
         );
 
         if (existing.rows.length === 0) {
-            console.error(`❌ No user found with email ${email}. Create with: npm run admin:create -- ${email} <password>`);
+            console.error('❌ No admin user found for this email. Create with: npm run admin:create -- <email> <password>');
             await db.close();
             process.exit(1);
         }
 
         const user = existing.rows[0];
         if (user.role !== 'admin') {
-            console.error(`❌ User ${email} is not an admin (role: ${user.role}).`);
+            console.error('❌ This user is not an admin.');
             await db.close();
             process.exit(1);
         }
@@ -64,8 +63,7 @@ async function setAdminPassword() {
         const passwordHash = await passwordService.hashPassword(password);
         await db.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [passwordHash, user.id]);
 
-        console.log('\n✅ Admin password updated successfully.');
-        console.log(`   Email: ${email}\n`);
+        console.log('\n✅ Admin password updated successfully.\n');
         await db.close();
         process.exit(0);
     } catch (error) {

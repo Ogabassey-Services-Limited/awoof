@@ -82,17 +82,22 @@ async function recordMigration(filename: string): Promise<void> {
  * Execute a single migration file
  */
 async function executeMigration(filename: string): Promise<void> {
-    const filePath = join(__dirname, filename);
+    // Prevent path traversal: only allow basename (no /, \, or ..)
+    const safeBasename = filename.replace(/\\/g, '/').split('/').pop() ?? filename;
+    if (safeBasename !== filename || /\.\./.test(filename)) {
+        throw new Error(`Invalid migration filename: ${filename}`);
+    }
+    const filePath = join(__dirname, safeBasename);
     const sql = readFileSync(filePath, 'utf-8');
 
-    appLogger.info(`📄 Running migration: ${filename}`);
+    appLogger.info(`📄 Running migration: ${safeBasename}`);
 
     try {
         await db.query(sql);
-        await recordMigration(filename);
-        appLogger.info(`Migration ${filename} executed successfully`);
+        await recordMigration(safeBasename);
+        appLogger.info(`Migration ${safeBasename} executed successfully`);
     } catch (error) {
-        appLogger.error(`Migration ${filename} failed:`, error);
+        appLogger.error(`Migration ${safeBasename} failed:`, error);
         throw error;
     }
 }

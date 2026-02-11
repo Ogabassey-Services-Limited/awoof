@@ -80,7 +80,6 @@ export default function VendorSettingsPage() {
         validateAllFiles,
         getFile,
         getError,
-        files,
     } = useFileUpload({
         maxSize: 5 * 1024 * 1024, // 5MB
     });

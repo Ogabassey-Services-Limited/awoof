@@ -48,12 +48,8 @@ export const authenticate = (
         };
 
         next();
-    } catch (error) {
-        if (error instanceof Error) {
-            next(new UnauthorizedError(error.message));
-        } else {
-            next(new UnauthorizedError('Authentication failed'));
-        }
+    } catch {
+        next(new UnauthorizedError('Authentication failed'));
     }
 };
 

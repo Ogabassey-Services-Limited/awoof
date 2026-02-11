@@ -35,11 +35,13 @@ class App {
    * Initialize middleware
    */
   private initializeMiddlewares(): void {
-    // Security headers (Helmet) – API-only: disable CSP/crossOriginEmbedder to avoid breaking cross-origin requests from frontend
+    // Security headers (Helmet). API-only: CSP/crossOriginEmbedder disabled to allow cross-origin API requests from frontend.
+    // All other defaults (X-Content-Type-Options, X-Frame-Options, etc.) are enabled.
     this.app.use(
       helmet({
         contentSecurityPolicy: false,
         crossOriginEmbedderPolicy: false,
+        crossOriginResourcePolicy: { policy: 'cross-origin' },
       })
     );
 

@@ -437,9 +437,12 @@ export class PaymentController {
             [vendorId]
         );
 
-        // Generate new API key
+        // Generate new API key and hash with high computational cost (CodeQL: sufficient effort)
         const apiKey = `awoof_${crypto.randomBytes(32).toString('hex')}`;
-        const keyHash = crypto.createHash('sha256').update(apiKey).digest('hex');
+        const salt = crypto.randomBytes(16);
+        const hashHex = crypto.pbkdf2Sync(apiKey, salt, 100000, 32, 'sha256').toString('hex');
+        const saltHex = salt.toString('hex');
+        const keyHashStored = `${hashHex}:${saltHex}`;
 
         // If there's an existing key, revoke it
         if (existingKeyResult.rows.length > 0) {
@@ -451,11 +454,11 @@ export class PaymentController {
             );
         }
 
-        // Create new API key
+        // Create new API key (key_hash stores "hash:salt" for verification)
         await db.query(
             `INSERT INTO api_keys (vendor_id, key_hash, name, rate_limit, status)
              VALUES ($1, $2, $3, $4, 'active')`,
-            [vendorId, keyHash, 'Transaction Reporting API Key', 1000]
+            [vendorId, keyHashStored, 'Transaction Reporting API Key', 1000]
         );
 
         // Return the API key (only shown once)

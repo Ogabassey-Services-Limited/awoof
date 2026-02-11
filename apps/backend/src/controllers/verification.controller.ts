@@ -138,8 +138,9 @@ export class VerificationController {
         const { token } = req.query;
 
         if (!email || !universityId) {
-            // If token provided, verify magic link
-            if (token && typeof token === 'string') {
+            // If token provided, verify magic link (validate format before delegating)
+            const tokenStr = typeof token === 'string' ? token.trim() : '';
+            if (tokenStr.length > 0 && tokenStr.length <= 512 && !/[\r\n\x00-\x1f]/.test(tokenStr)) {
                 return this.verifyMagicLink(req, res);
             }
             throw new BadRequestError('Email and university ID are required');

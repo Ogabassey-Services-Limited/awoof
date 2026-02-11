@@ -65,8 +65,6 @@ export default function NewProductPage() {
         register,
         handleSubmit,
         formState: { errors },
-        setValue,
-        watch,
     } = useForm<ProductFormData>({
         resolver: zodResolver(productSchema),
         defaultValues: {
