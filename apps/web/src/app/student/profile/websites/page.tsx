@@ -7,7 +7,6 @@
 import { useState, useEffect } from 'react';
 import { FileText, ChevronLeft, ExternalLink, Calendar } from 'lucide-react';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import apiClient from '@/lib/api-client';
@@ -22,7 +21,6 @@ interface WebsiteVisit {
 }
 
 export default function WebsitesVisitedPage() {
-    const { user } = useAuth();
     const [visits, setVisits] = useState<WebsiteVisit[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 

@@ -69,3 +69,8 @@ DEPLOYMENT.md
 PAYMENT_TRACKING_ARCHITECTURE.md
 SECURITY_MEASURES.md
 
+# App-level docs (web, backend, widget – do not push)
+apps/web/**/*.md
+apps/backend/**/*.md
+apps/widget/**/*.md
+

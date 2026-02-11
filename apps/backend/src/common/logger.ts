@@ -1,7 +1,8 @@
 /**
  * Application logger
  * Use instead of console.* in app code. In production, only errors are logged to stdout.
- * Sanitizes all args to prevent log injection (newlines, control chars, including Error.message).
+ * All output is sanitized (newlines/control chars removed) and passed as a single string
+ * to avoid log injection (CWE-117). No user-controlled data is written unsanitized.
  */
 
 import { config } from '../config/env.js';
@@ -20,21 +21,22 @@ function sanitize(arg: unknown): string {
   return String(arg);
 }
 
-function safeArgs(args: unknown[]): string[] {
-  return args.map(a => sanitize(a));
+/** Sanitize and join all args into one safe string for logging. */
+function toSafeLogMessage(args: unknown[]): string {
+  return args.map(a => sanitize(a)).join(' ');
 }
 
 export const appLogger = {
   info: (...args: unknown[]) => {
-    if (!isProd) console.log(...safeArgs(args));
+    if (!isProd) console.log(toSafeLogMessage(args));
   },
   warn: (...args: unknown[]) => {
-    if (!isProd) console.warn(...safeArgs(args));
+    if (!isProd) console.warn(toSafeLogMessage(args));
   },
   error: (...args: unknown[]) => {
-    console.error(...safeArgs(args));
+    console.error(toSafeLogMessage(args));
   },
   debug: (...args: unknown[]) => {
-    if (!isProd) console.debug(...safeArgs(args));
+    if (!isProd) console.debug(toSafeLogMessage(args));
   },
 };

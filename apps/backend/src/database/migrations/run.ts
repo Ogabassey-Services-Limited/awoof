@@ -8,11 +8,8 @@
 import { db } from '../../config/database.js';
 import { appLogger } from '../../common/logger.js';
 import { readFileSync, readdirSync } from 'fs';
-import { join, dirname, basename, resolve } from 'path';
+import { dirname, basename, resolve } from 'path';
 import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 /**
  * Migration record in database
@@ -23,15 +20,19 @@ interface Migration {
     executed_at: Date;
 }
 
+/** Resolved migrations directory (single source of truth for path checks). */
+const MIGRATIONS_DIR = resolve(dirname(fileURLToPath(import.meta.url)));
+
 /**
- * Get all migration files sorted by name
+ * Get all migration file paths (resolved, under MIGRATIONS_DIR) sorted by basename.
+ * Filenames come from readdirSync only (filesystem), not HTTP/user input.
  */
 function getMigrationFiles(): string[] {
-    const migrationsDir = join(__dirname, '.');
-    const files = readdirSync(migrationsDir)
-        .filter(file => file.endsWith('.sql'))
+    const files = readdirSync(MIGRATIONS_DIR)
+        .filter((file): file is string => file.endsWith('.sql'))
         .sort();
-    return files;
+    // nosemgrep: path-join-resolve-traversal -- f is from readdirSync(MIGRATIONS_DIR), not user input
+    return files.map((f) => resolve(MIGRATIONS_DIR, f));
 }
 
 /**
@@ -79,21 +80,15 @@ async function recordMigration(filename: string): Promise<void> {
 }
 
 /**
- * Execute a single migration file
+ * Execute a single migration file by its full path.
+ * fullPath must be a path returned by getMigrationFiles() (under MIGRATIONS_DIR); no join with user input.
  */
-async function executeMigration(filename: string): Promise<void> {
-    // Prevent path traversal: use only basename and ensure resolved path stays under migrations dir
-    const base = basename(filename);
-    if (base !== filename || filename.includes('..')) {
-        throw new Error(`Invalid migration filename: ${filename}`);
+async function executeMigration(fullPath: string): Promise<void> {
+    const base = basename(fullPath);
+    if (!fullPath.startsWith(MIGRATIONS_DIR) || fullPath === MIGRATIONS_DIR || fullPath.includes('..')) {
+        throw new Error(`Invalid migration path: ${fullPath}`);
     }
-    const filePath = join(__dirname, base);
-    const resolved = resolve(filePath);
-    const migrationsDir = resolve(__dirname);
-    if (!resolved.startsWith(migrationsDir) || resolved === migrationsDir) {
-        throw new Error(`Invalid migration path: ${filename}`);
-    }
-    const sql = readFileSync(resolved, 'utf-8');
+    const sql = readFileSync(fullPath, 'utf-8');
 
     appLogger.info(`📄 Running migration: ${base}`);
 
@@ -117,14 +112,14 @@ export async function runMigrations(): Promise<void> {
         // Ensure migration table exists
         await ensureMigrationTable();
 
-        // Get all migration files and executed migrations
-        const migrationFiles = getMigrationFiles();
+        // Get all migration file paths and executed migrations (stored by basename)
+        const migrationFilePaths = getMigrationFiles();
         const executedMigrations = await getExecutedMigrations();
         const executedFilenames = new Set(executedMigrations.map(m => m.filename));
 
-        // Filter out already executed migrations
-        const pendingMigrations = migrationFiles.filter(
-            file => !executedFilenames.has(file)
+        // Filter out already executed migrations (compare by basename)
+        const pendingMigrations = migrationFilePaths.filter(
+            fullPath => !executedFilenames.has(basename(fullPath))
         );
 
         if (pendingMigrations.length === 0) {
@@ -135,8 +130,8 @@ export async function runMigrations(): Promise<void> {
         appLogger.info(`Found ${pendingMigrations.length} pending migration(s)\n`);
 
         // Execute pending migrations in order
-        for (const filename of pendingMigrations) {
-            await executeMigration(filename);
+        for (const fullPath of pendingMigrations) {
+            await executeMigration(fullPath);
             appLogger.info('');
         }
 

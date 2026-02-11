@@ -68,7 +68,6 @@ export default function EditProductPage() {
         register,
         handleSubmit,
         formState: { errors },
-        setValue,
         reset,
     } = useForm<ProductFormData>({
         resolver: zodResolver(productSchema),

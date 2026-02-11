@@ -40,7 +40,7 @@ export default function ProductDetailPage() {
     const productId = params.id as string;
     const [product, setProduct] = useState<Product | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [isAddingToCart, setIsAddingToCart] = useState(false);
+    const [isAddingToCart] = useState(false);
 
     useEffect(() => {
         if (productId) {
