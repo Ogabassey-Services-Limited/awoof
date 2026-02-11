@@ -62,3 +62,10 @@ apps/web/uploads/
 .github/deploy_key.pub
 deploy_key_private.txt
 
+# Root plans and documentation (local only)
+8_WEEK_BUILD_PLAN.md
+AWOOF_MVP_PRD.md
+DEPLOYMENT.md
+PAYMENT_TRACKING_ARCHITECTURE.md
+SECURITY_MEASURES.md
+
