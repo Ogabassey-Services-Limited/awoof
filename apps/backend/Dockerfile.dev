@@ -10,10 +10,13 @@ COPY package*.json ./
 
 RUN npm install
 
-# Copy source code
+# Copy source code and entrypoint
 COPY . .
+COPY docker-entrypoint.dev.sh /docker-entrypoint.dev.sh
+RUN chmod +x /docker-entrypoint.dev.sh
 
 EXPOSE 5000
 
+ENTRYPOINT ["/docker-entrypoint.dev.sh"]
 # Use tsx with watch mode for hot reloading
 CMD ["npm", "run", "dev"]

@@ -7,6 +7,8 @@
 
 import express, { type Express } from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import swaggerUi from 'swagger-ui-express';
 import { config } from './config/env.js';
 import { db } from './config/database.js';
@@ -33,6 +35,14 @@ class App {
    * Initialize middleware
    */
   private initializeMiddlewares(): void {
+    // Security headers (Helmet) – API-only: disable CSP/crossOriginEmbedder to avoid breaking cross-origin requests from frontend
+    this.app.use(
+      helmet({
+        contentSecurityPolicy: false,
+        crossOriginEmbedderPolicy: false,
+      })
+    );
+
     // CORS
     this.app.use(
       cors({
@@ -44,6 +54,22 @@ class App {
     // Body parser
     this.app.use(express.json({ limit: '10mb' }));
     this.app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+    // Global rate limit (brute-force / DoS protection)
+    this.app.use(
+      rateLimit({
+        windowMs: config.rateLimit.windowMs,
+        max: config.rateLimit.maxRequests,
+        standardHeaders: true,
+        legacyHeaders: false,
+        handler: (_req, res) => {
+          res.status(429).json({
+            success: false,
+            error: { message: 'Too many requests. Please try again later.', statusCode: 429 },
+          });
+        },
+      })
+    );
 
     // Request logger
     this.app.use(logger);
@@ -92,10 +118,22 @@ class App {
       });
     });
 
-    // Authentication routes
+    // Authentication routes (stricter rate limit: login, register, forgot-password abuse)
     try {
+      const authRateLimiter = rateLimit({
+        windowMs: 15 * 60 * 1000, // 15 minutes
+        max: 50, // 50 requests per window per IP
+        standardHeaders: true,
+        legacyHeaders: false,
+        handler: (_req, res) => {
+          res.status(429).json({
+            success: false,
+            error: { message: 'Too many auth attempts. Please try again later.', statusCode: 429 },
+          });
+        },
+      });
       const authRoutes = await import('./routes/auth.routes.js');
-      this.app.use('/api/auth', authRoutes.default);
+      this.app.use('/api/auth', authRateLimiter, authRoutes.default);
       appLogger.info('Auth routes registered');
     } catch (error) {
       appLogger.error('Failed to register auth routes:', error);
